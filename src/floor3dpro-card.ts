@@ -27,7 +27,7 @@ import '../elements/button';
 
 /* eslint no-console: 0 */
 console.info(
-  `%c  FLOOR3DPRO-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
+  `%c  FLOOR3D[PRO]-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
   'color: orange; font-weight: bold; background: black',
   'color: white; font-weight: bold; background: dimgray',
 );
@@ -44,6 +44,52 @@ console.info(
 class ModelSource {
   public static OBJ = 0;
   public static GLB = 1;
+}
+
+// Faz-0 Asset Cache: game engine, deterministic, per-instance clone
+type AssetSource = THREE.Object3D;
+
+const __assetCacheReady: Map<string, AssetSource> = new Map();
+const __assetCacheInflight: Map<string, Promise<AssetSource>> = new Map();
+
+function __normalizePath(path: string): string {
+  if (!path) return '';
+  const last = path.charAt(path.length - 1);
+  if (last === '/') return path;
+  return path + '/';
+}
+
+function __assetCacheKey(
+  path: string,
+  objfile: string,
+  mtlfile?: string,
+): string {
+  const p = __normalizePath(path);
+  if (mtlfile && mtlfile !== '') {
+    return `${p}|${objfile}|${mtlfile}`;
+  }
+  return `${p}|${objfile}`;
+}
+
+function __deepCloneObject(source: THREE.Object3D): THREE.Object3D {
+  const clone = source.clone(true);
+
+  clone.traverse((node: any) => {
+    if (node.isMesh) {
+      if (node.material) {
+        if (Array.isArray(node.material)) {
+          node.material = node.material.map((m: THREE.Material) => m.clone());
+        } else {
+          node.material = node.material.clone();
+        }
+      }
+      if (node.geometry) {
+        node.geometry = node.geometry.clone();
+      }
+    }
+  });
+
+  return clone;
 }
 
 //Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
@@ -960,7 +1006,7 @@ export class Floor3dCard extends LitElement {
     this._lastResizeW = w;
     this._lastResizeH = h;
 
-    console.log('Resize canvas start-A-');
+    console.log('Resize canvas start');
     this._camera.aspect = w / h;
     this._camera.updateProjectionMatrix();
     this._renderer.setSize(
@@ -1508,6 +1554,7 @@ export class Floor3dCard extends LitElement {
     this._renderer.localClippingEnabled = true;
     this._renderer.physicallyCorrectLights = false;
 
+// Faz-0 Asset Cache: game engine, deterministic, per-instance clone   
     if (this._config.path && this._config.path != '') {
       let path = this._config.path;
       const lastChar = path.charAt(path.length - 1);
@@ -1518,45 +1565,129 @@ export class Floor3dCard extends LitElement {
       }
       console.log('Path: ' + path);
 
-      let fileExt = this._config.objfile.split('?')[0].split('.').pop();
+      const objfile = this._config.objfile;
+      const mtlfile = this._config.mtlfile;
 
-      if (fileExt == 'obj') {
-        //waterfront format
-        if (this._config.mtlfile && this._config.mtlfile != '') {
-          const mtlLoader: MTLLoader = new MTLLoader();
-          mtlLoader.setPath(path);
-          mtlLoader.load(
-            this._config.mtlfile,
-            this._onLoaded3DMaterials.bind(this),
-            this._onLoadMaterialProgress.bind(this),
-            function (error: ErrorEvent): void {
-              throw new Error(error.error);
-            },
-          );
-        } else {
-          const objLoader: OBJLoader = new OBJLoader();
-          objLoader.load(
-            path + this._config.objfile,
-            this._onLoaded3DModel.bind(this),
-            this._onLoadObjectProgress.bind(this),
-            function (error: ErrorEvent): void {
-              throw new Error(error.error);
-            },
-          );
-        }
-        this._modeltype = ModelSource.OBJ;
-      } else if (fileExt == 'glb') {
-        //glb format
-        const loader = new GLTFLoader().setPath(path);
-        loader.load(
-          this._config.objfile,
-          this._onLoadedGLTF3DModel.bind(this),
-          this._onloadedGLTF3DProgress.bind(this),
-          function (error: ErrorEvent): void {
-            throw new Error(error.error);
-          },
+      const cacheKey = __assetCacheKey(path, objfile, mtlfile);
+
+      const useSource = (source: THREE.Object3D) => {
+        // Faz-0 PRO Backbone: pro-log (asset cache)
+        this._proEngineLog(`assetCache: clone-start | key=${cacheKey}`, `assetCache:clone-start:${cacheKey}`);
+        const instanceObject = __deepCloneObject(source);
+        this._proEngineLog(`assetCache: clone-done | key=${cacheKey}`, `assetCache:clone-done:${cacheKey}`);
+        this._onLoaded3DModel(instanceObject);
+      };
+
+      if (__assetCacheReady.has(cacheKey)) {
+        // Faz-0 PRO Backbone: pro-log (asset cache)
+        this._proEngineLog(
+          `assetCache: HIT (ready) | key=${cacheKey}`,
+          `assetCache:hit:${cacheKey}`,
         );
-        this._modeltype = ModelSource.GLB;
+        useSource(__assetCacheReady.get(cacheKey));
+      } else if (__assetCacheInflight.has(cacheKey)) {
+        // Faz-0 PRO Backbone: pro-log (asset cache)
+        this._proEngineLog(
+          `assetCache: WAIT (inflight) | key=${cacheKey}`,
+          `assetCache:wait:${cacheKey}`,
+        );
+        __assetCacheInflight.get(cacheKey).then(useSource);
+      } else {
+        // Faz-0 PRO Backbone: pro-log (asset cache)
+        this._proEngineLog(
+          `assetCache: COLD-LOAD start | key=${cacheKey} | obj=${objfile}${mtlfile ? ` | mtl=${mtlfile}` : ''}`,
+          `assetCache:cold-start:${cacheKey}`,
+        );
+
+        const loadPromise = new Promise<THREE.Object3D>((resolve, reject) => {
+          let fileExt = objfile.split('?')[0].split('.').pop();
+
+          if (fileExt == 'obj') {
+            //waterfront format
+            if (mtlfile && mtlfile != '') {
+              const mtlLoader: MTLLoader = new MTLLoader();
+              mtlLoader.setPath(path);
+              mtlLoader.load(
+                mtlfile,
+                (materials) => {
+                  // keep original console logs (same messages as _onLoaded3DMaterials)
+                  console.log('Material loaded start');
+                  materials.preload();
+
+                  const objLoader: OBJLoader = new OBJLoader();
+                  objLoader.setMaterials(materials);
+                  objLoader.load(
+                    path + objfile,
+                    (object) => resolve(object),
+                    this._onLoadObjectProgress.bind(this),
+                    function (error: ErrorEvent): void {
+                      reject(new Error(error.error));
+                    },
+                  );
+
+                  console.log('Material loaded end');
+                },
+                this._onLoadMaterialProgress.bind(this),
+                function (error: ErrorEvent): void {
+                  reject(new Error(error.error));
+                },
+              );
+            } else {
+              const objLoader: OBJLoader = new OBJLoader();
+              objLoader.load(
+                path + objfile,
+                (object) => resolve(object),
+                this._onLoadObjectProgress.bind(this),
+                function (error: ErrorEvent): void {
+                  reject(new Error(error.error));
+                },
+              );
+            }
+            this._modeltype = ModelSource.OBJ;
+          } else if (fileExt == 'glb') {
+            //glb format
+            const loader = new GLTFLoader().setPath(path);
+            loader.load(
+              objfile,
+              (gltf) => resolve(gltf.scene),
+              this._onloadedGLTF3DProgress.bind(this),
+              function (error: ErrorEvent): void {
+                reject(new Error(error.error));
+              },
+            );
+            this._modeltype = ModelSource.GLB;
+          } else {
+            reject(new Error('Unsupported model format'));
+          }
+        });
+
+        __assetCacheInflight.set(cacheKey, loadPromise);
+
+        loadPromise
+          .then((source) => {
+            __assetCacheInflight.delete(cacheKey);
+            __assetCacheReady.set(cacheKey, source);
+
+            // Faz-0 PRO Backbone: pro-log (asset cache)
+            this._proEngineLog(
+              `assetCache: COLD-LOAD done | key=${cacheKey}`,
+              `assetCache:cold-done:${cacheKey}`,
+            );
+
+            useSource(source);
+          })
+          .catch((err) => {
+            __assetCacheInflight.delete(cacheKey);
+
+            // Faz-0 PRO Backbone: pro-log (asset cache)
+            const msg = (err && (err as any).message) ? (err as any).message : String(err);
+            this._proEngineLog(
+              `assetCache: ERROR | key=${cacheKey} | ${msg}`,
+              `assetCache:error:${cacheKey}`,
+            );
+
+            throw err;
+          });
       }
     } else {
       throw new Error('Path is empty');
@@ -1645,7 +1776,12 @@ export class Floor3dCard extends LitElement {
       this._content.addEventListener('mousedown', this._mousedownEventListener);
       this._content.addEventListener('mouseup', this._mouseupEventListener);
       this._content.addEventListener('dblclick', this._performActionListener);
-      this._content.addEventListener('touchstart', this._performActionListener);
+      this._content.addEventListener(
+        'touchstart',
+        this._performActionListener,
+        { passive: true },
+      );
+      
       this._content.addEventListener('keydown', this._performActionListener);
 
       this._setCamera();

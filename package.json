@@ -34,7 +34,7 @@
     "lit": "^2.0.0",
     "three": "^0.130.1",
     "three-spritetext": "^1.6.4",
-    "tslib": "^2.6.2"
+    "tslib": "2.6.2"
   },
   "devDependencies": {
     "@babel/core": "^7.14.6",
