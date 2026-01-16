@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ActionConfig, LovelaceCard, LovelaceCardEditor } from 'custom-card-helpers';
 
+//Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
 declare global {
   interface HTMLElementTagNameMap {
-    'floor3d-card-editor': LovelaceCardEditor;
+    'floor3dpro-card-editor': LovelaceCardEditor;
     'hui-error-card': LovelaceCard;
   }
 }

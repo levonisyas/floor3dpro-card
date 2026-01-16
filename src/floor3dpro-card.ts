@@ -32,21 +32,23 @@ console.info(
   'color: white; font-weight: bold; background: dimgray',
 );
 
+//Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
 // This puts your card into the UI card picker dialog
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
-  type: 'floor3d-card',
-  name: 'Floor3d Card',
-  preview: true,
-  description: 'A custom card to visualize and activate entities in a live 3D model',
+  type: 'floor3dpro-card',
+  name: 'Floor3d Pro Card',
+  preview: false,
+  description: 'HA Digital Twin Pro Upgrade',
 });
 class ModelSource {
   public static OBJ = 0;
   public static GLB = 1;
 }
 
+//Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
 // TODO Name your custom element
-@customElement('floor3d-card')
+@customElement('floor3dpro-card')
 export class Floor3dCard extends LitElement {
   private _scene?: THREE.Scene;
   private _camera?: THREE.PerspectiveCamera;
@@ -248,102 +250,40 @@ export class Floor3dCard extends LitElement {
     }
   }
 
+//Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components  
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
-    return document.createElement('floor3d-card-editor');
+    return document.createElement('floor3dpro-card-editor');
   }
 
-  public static getStubConfig(hass: HomeAssistant, entities: string[], entitiesFallback: string[]): object {
+  //Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
+  public static getStubConfig(
+    hass: HomeAssistant,
+    entities: string[],
+    entitiesFallback: string[]
+  ): object {
     console.log('Stub started');
-
-    const entityFilter = (stateObj: HassEntity): boolean => {
-      return !isNaN(Number(stateObj.state));
-    };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const _arrayFilter = (array: any[], conditions: Array<(value: any) => boolean>, maxSize: number) => {
-      if (!maxSize || maxSize > array.length) {
-        maxSize = array.length;
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const filteredArray: any[] = [];
-
-      for (let i = 0; i < array.length && filteredArray.length < maxSize; i++) {
-        let meetsConditions = true;
-
-        for (const condition of conditions) {
-          if (!condition(array[i])) {
-            meetsConditions = false;
-            break;
-          }
-        }
-
-        if (meetsConditions) {
-          filteredArray.push(array[i]);
-        }
-      }
-
-      return filteredArray;
-    };
-
-    const _findEntities = (
-      hass: HomeAssistant,
-      maxEntities: number,
-      entities: string[],
-      entitiesFallback: string[],
-      includeDomains?: string[],
-      entityFilter?: (stateObj: HassEntity) => boolean,
-    ) => {
-      const conditions: Array<(value: string) => boolean> = [];
-
-      if (includeDomains?.length) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        conditions.push((eid) => includeDomains!.includes(eid.split('.')[0]));
-      }
-
-      if (entityFilter) {
-        conditions.push((eid) => hass.states[eid] && entityFilter(hass.states[eid]));
-      }
-
-      const entityIds = _arrayFilter(entities, conditions, maxEntities);
-
-      if (entityIds.length < maxEntities && entitiesFallback.length) {
-        const fallbackEntityIds = _findEntities(
-          hass,
-          maxEntities - entityIds.length,
-          entitiesFallback,
-          [],
-          includeDomains,
-          entityFilter,
-        );
-
-        entityIds.push(...fallbackEntityIds);
-      }
-
-      return entityIds;
-    };
-
-    //build a valid stub config
-
-    let includeDomains = ['binary_sensor'];
-    let maxEntities = 2;
-
-    let foundEntities = _findEntities(hass, maxEntities, entities, entitiesFallback, includeDomains);
+    void hass;
+    void entities;
+    void entitiesFallback;
 
     const url = new URL(import.meta.url);
     let asset = url.pathname.split('/').pop();
     let path = url.pathname.replace(asset, '');
 
     if (path.includes('hacsfiles')) {
-      path = '/local/community/floor3d-card/';
+      path = '/local/community/floor3dpro-card/';
     }
 
     const conf = {
+      //type: 'custom:floor3dpro-card',
       path: path,
-      name: 'Home',
-      objfile: 'home.glb',
+      up_log: 'true',
+      pro_log: 'engine',
+      name: 'Floor3D-Pro',
+      objfile: '',
       lock_camera: 'no',
-      header: 'yes',
+      header: 'no',
       click: 'no',
       overlay: 'no',
       backgroundColor: '#aaaaaa',
@@ -359,63 +299,24 @@ export class Floor3dCard extends LitElement {
       overlay_width: '33',
       overlay_height: '20',
       north: { x: 0, z: -1 },
-      camera_position: { x: 609.3072605703628, y: 905.5330092468828, z: 376.66437610591277 },
-      camera_rotate: { x: -1.0930244719682243, y: 0.5200808414019678, z: 0.7648717152512469 },
-      camera_target: { x: 37.36890424945437, y: 18.64464320782064, z: -82.55051697031719 },
-      object_groups: [
-        {
-          object_group: 'RoundTable',
-          objects: [{ object_id: 'Round_table_1' }, { object_id: 'Round_table_2' }, { object_id: 'Round_table_3' }],
-        },
-        {
-          object_group: 'EntranceDoor',
-          objects: [{ object_id: 'Door_9' }, { object_id: 'Door_7' }, { object_id: 'Door_5' }],
-        },
-      ],
+      camera_position: {
+        x: 609.3072605703628,
+        y: 905.5330092468828,
+        z: 376.66437610591277
+      },
+      camera_rotate: {
+        x: -1.0930244719682243,
+        y: 0.5200808414019678,
+        z: 0.7648717152512469
+      },
+      camera_target: {
+        x: 37.36890424945437,
+        y: 18.64464320782064,
+        z: -82.55051697031719
+      },
+      object_groups: [],
       entities: [],
     };
-
-    let totalentities = 0;
-
-    if (foundEntities[0]) {
-      conf.entities.push({
-        entity: foundEntities[0],
-        type3d: 'door',
-        object_id: '<EntranceDoor>',
-        door: { doortype: 'swing', direction: 'inner', hinge: 'Door_3', percentage: '90' },
-      });
-      totalentities += 1;
-    }
-    if (foundEntities[1]) {
-      conf.entities.push({
-        entity: foundEntities[1],
-        type3d: 'hide',
-        object_id: '<RoundTable>',
-        hide: { state: 'off' },
-      });
-      totalentities += 1;
-    }
-
-    includeDomains = ['light'];
-    maxEntities = 1;
-
-    let foundLights = _findEntities(hass, maxEntities, entities, entitiesFallback, includeDomains);
-
-    if (foundLights[0]) {
-      conf.entities.push({
-        entity: foundLights[0],
-        type3d: 'light',
-        object_id: 'Bowl_2',
-        light: { lumens: '800' },
-      });
-      totalentities += 1;
-    }
-
-    if (totalentities == 0) {
-      conf.entities.push({
-        entity: '',
-      });
-    }
 
     console.log(conf);
 
@@ -1994,8 +1895,8 @@ export class Floor3dCard extends LitElement {
     iconArray.push(html`
       <div class="row" style="background-color:black;">
         <font color="white">
-          <floor3d-button style="opacity: 100%;" label="reset" .index=${-1} @click=${this._handleZoomClick.bind(this)}>
-          </floor3d-button>
+          <floor3dpro-button style="opacity: 100%;" label="reset" .index=${-1} @click=${this._handleZoomClick.bind(this)}>
+          </floor3dpro-button>
         </font>
       </div>
     `);
@@ -2005,8 +1906,8 @@ export class Floor3dCard extends LitElement {
         iconArray.push(html`
           <div class="row" style="background-color:black;">
             <font color="white">
-              <floor3d-button label=${element.name} .index=${index} @click=${this._handleZoomClick.bind(this)}>
-              </floor3d-button>
+              <floor3dpro-button label=${element.name} .index=${index} @click=${this._handleZoomClick.bind(this)}>
+              </floor3dpro-button>
             </font>
           </div>
         `);
@@ -2074,12 +1975,12 @@ export class Floor3dCard extends LitElement {
       buttonArray.push(html`
         <div class="row" style="background-color:black;">
           <font color="white">
-            <floor3d-button
+            <floor3dpro-button
               style="opacity: 100%;"
               label="clear selections (${this._selectedobjects.length})"
               @click=${this._handleClearSelectionsClick.bind(this)}
             >
-            </floor3d-button>
+            </floor3dpro-button>
           </font>
         </div>
       `);
@@ -2087,12 +1988,12 @@ export class Floor3dCard extends LitElement {
       buttonArray.push(html`
         <div class="row" style="background-color:black;">
           <font color="white">
-            <floor3d-button
+            <floor3dpro-button
               style="opacity: 100%;"
               label="${this._selectionModeEnabled ? 'Disable Selection' : 'Enable Selection'}"
               @click=${this._handleToggleSelectionMode.bind(this)}
             >
-            </floor3d-button>
+            </floor3dpro-button>
           </font>
         </div>
       `);

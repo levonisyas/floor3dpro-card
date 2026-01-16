@@ -3,7 +3,8 @@ import { SelectBase } from '@material/mwc-select/mwc-select-base.js';
 import { styles as selectStyles } from '@material/mwc-select/mwc-select.css';
 import { customElement, property } from "lit/decorators.js";
 
-@customElement("floor3d-select")
+//Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
+@customElement("floor3dpro-select")
 export class Floor3dSelect extends SelectBase {
 
     static get styles() {
@@ -13,7 +14,7 @@ export class Floor3dSelect extends SelectBase {
 
 declare global {
     interface HTMLElementTagNameMap {
-        "floor3d-select": Floor3dSelect;
+        "floor3dpro-select": Floor3dSelect;
     }
 }
 
