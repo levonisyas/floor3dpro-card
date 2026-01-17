@@ -21,16 +21,15 @@ However, as models grow large and entity counts increase, natural performance an
 ---
 >## Deterministic Correction: (Fix)
 >*Repairs the original behavior through a clean, deterministic game‑engine backbone..*
-* Overlay is display‑only — must not block clicks on level/zoom controls
-* Touchstart listener marked passive — prevents scroll‑blocking violations
-* Canvas obscurity logic corrected — animation stops only when a real dialog/overlay is present, not when root containers appear
-* Edit-Card preview guard added — unsafe DOM traversal no longer crashes the card
-* Raycasting concat pressure eliminated — deterministic rebuild without array growth
-* Cover / z-index overlay mis-detection resolved
-* Cover/Index alignment restored — _states and _position now map deterministically, including valid 0 positions
-* Editor lifecycle guard added — early render() calls no longer risk undefined-access crashes
-* Edit‑Card fallback template enabled — hostile lifecycle states no longer break the editor
-*  DOM custom‑element isolation added — original and Pro cards can run side‑by‑side without conflict.
+* **Overlay is display‑only** — must not block clicks on level/zoom controls
+* **Touchstart listener marked passive** — prevents scroll‑blocking violations
+* **Canvas obscurity logic corrected** — animation stops only when a real dialog/overlay is present, not when root containers appear
+* **Edit-Card preview guard added** — unsafe DOM traversal no longer crashes the card
+* **Raycasting concat pressure eliminated** — deterministic rebuild without array growth
+* **Cover/Index alignment restored** — _states and _position now map deterministically, including valid 0 positions
+* **Editor lifecycle guard added** — early render() calls no longer risk undefined-access crashes
+* **Edit‑Card fallback template enabled** — hostile lifecycle states no longer break the editor
+* **DOM custom‑element isolation added** — original and Pro cards can run side‑by‑side without conflict.
 ---
 ## Built on a Real Game‑Engine Backbone
 Shaped by professional architectural insight — not just code.  
