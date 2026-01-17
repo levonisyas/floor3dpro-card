@@ -1,7 +1,7 @@
 # Floor3D [PRO] Card  
 ## Your Home Digital Twin – Game Engine Backbone Edition
 ---
-<img width="1664" height="893" alt="image" src="https://github.com/user-attachments/assets/baa83f4f-d068-4f7b-9397-1a39fd71791f" />
+<img width="1200" height="643" alt="image" src="https://github.com/user-attachments/assets/baa83f4f-d068-4f7b-9397-1a39fd71791f" />
 
 ---
 **Original concept and vision:** `floor3d-card` by **@andyHA** – with full respect and acknowledgment of the foundational work.  
