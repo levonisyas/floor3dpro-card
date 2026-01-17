@@ -324,15 +324,15 @@ export class Floor3dCard extends LitElement {
     const conf = {
       //type: 'custom:floor3dpro-card',
       path: path,
-      up_log: 'true',
+      //up_log: 'true',
       pro_log: 'engine',
       name: 'Floor3D-Pro',
-      objfile: '',
+      objfile: 'demo.glb',
       lock_camera: 'no',
       header: 'no',
       click: 'no',
       overlay: 'no',
-      backgroundColor: '#aaaaaa',
+      backgroundColor: '#000000',
       hideLevelsMenu: 'no',
       globalLightPower: '0.8',
       shadow: 'no',
@@ -346,14 +346,14 @@ export class Floor3dCard extends LitElement {
       overlay_height: '20',
       north: { x: 0, z: -1 },
       camera_position: {
-        x: 609.3072605703628,
-        y: 905.5330092468828,
-        z: 376.66437610591277
+        x: 2456.3489712694814,
+        y: 1672.4913401642564,
+        z: 3155.8860100928296
       },
       camera_rotate: {
-        x: -1.0930244719682243,
-        y: 0.5200808414019678,
-        z: 0.7648717152512469
+        x: -0.4721653287186381,
+        y: 0.5870080917480095,
+        z: 0.2756576471340779
       },
       camera_target: {
         x: 37.36890424945437,
@@ -2287,6 +2287,8 @@ export class Floor3dCard extends LitElement {
 
       overlay.style.setProperty('overflow', 'hidden');
       overlay.style.setProperty('white-space', 'nowrap');
+      // Faz-0 Deterministic Correction: (Fix) Overlay is display-only; never block clicks on level/zoom bars
+      overlay.style.setProperty('pointer-events', 'none');
       let zindex = '';
 
       try {
