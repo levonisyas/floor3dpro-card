@@ -1,8 +1,3 @@
-Below is a **forum-ready, clean, technical but readable** explanation you can publish as-is.
-It avoids hype, avoids “performance tuning” claims, and correctly frames this as an **engine backbone + determinism** improvement.
-
----
-
 # Three.js Game-Engine Style Asset Cache
 
 ### Deterministic, Per-Instance Clone Architecture for UI-Driven 3D Scenes
@@ -229,12 +224,3 @@ Just one rule:
 Everything else builds cleanly on top of that.
 
 ---
-
-If you want, I can also:
-
-* Shorten this for Reddit
-* Add a diagram
-* Turn it into a README
-* Write a “before / after” comparison
-
-Just say the word.
