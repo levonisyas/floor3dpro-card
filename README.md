@@ -19,6 +19,17 @@ However, as models grow large and entity counts increase, natural performance an
 **This project focuses on scaling and stabilization, not on rewriting the core idea.**
 
 ---
+## Built on a Real Game‑Engine Backbone
+Shaped by professional architectural insight — not just code.  
+**Not a game engine — but behaves like one.**  
+This card implements a **deterministic game‑engine architecture** for both rendering and asset management.
+
+---
+## Determinism as the Primary Goal
+This isn’t a performance hack — it's determinism as a foundation.
+**Deterministic rendering. Deterministic assets. Isolated instances. Stable behavior.**
+
+---
 >## Deterministic Correction: (Fix)
 >*Repairs the original behavior through a clean, deterministic game‑engine backbone..*
 * **Overlay is display‑only** — must not block clicks on level/zoom controls
@@ -30,12 +41,6 @@ However, as models grow large and entity counts increase, natural performance an
 * **Editor lifecycle guard added** — early render() calls no longer risk undefined-access crashes
 * **Edit‑Card fallback template enabled** — hostile lifecycle states no longer break the editor
 * **DOM custom‑element isolation added** — original and Pro cards can run side‑by‑side without conflict.
----
-## Built on a Real Game‑Engine Backbone
-Shaped by professional architectural insight — not just code.  
-**Not a game engine — but behaves like one.**  
-This card implements a **deterministic game‑engine architecture** for both rendering and asset management.
-
 ---
 ## Floor3D Pro: From UI Component to Game‑Engine Backbone
 > 100 triggers → 1 render path → 1 scheduled frame`  
@@ -75,9 +80,7 @@ Cached assets remain read‑only, and every instance gets isolated materials, ge
 ### Stable Engine Loop, Deterministic Backbone
 The engine loop stays untouched (`State → Index → Apply → Render`), but the backbone becomes predictable, stable, and immune to UI chaos.
 
-### Determinism as the Primary Goal
-This isn’t a performance hack — it's determinism as a foundation.
-**Deterministic rendering. Deterministic assets. Isolated instances. Stable behavior.**
+
 
 ---
 ## Installation
