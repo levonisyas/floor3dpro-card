@@ -1,3 +1,168 @@
+# Floor3D Pro: Deterministic Render Scheduler and Engine Backbone
+
+## Context: Transition from UI Component to Game Engine Logic
+
+The original floor3d-card successfully implemented the concept of a true digital twin within Home Assistant. However, as models grow larger and entity counts increase, performance and stability limitations begin to emerge. The problem is not poor design, but rather that **UI-driven architectures do not scale like game engines**.
+
+This work focuses on scaling and stabilization, not rewriting the core concept.
+
+---
+
+## Core Problem: Randomly Triggered Render Structure
+
+**Previous State (UI Component Logic):**
+- The `render()` method could be called directly from many places
+- OrbitControls changes → render
+- Resize events → render
+- Hass state updates → render
+- zIndex changes → render
+
+**Consequences:**
+- Render storms
+- Sudden CPU/GPU load spikes
+- Lag and freezing sensations on weak devices
+- "Moving the mouse fixes it" illusion
+
+---
+
+## Solution: Deterministic Render Scheduler
+
+This is **not a classic game loop**, but a **deterministic render scheduler**.
+
+### Single Entry Point: `_requestRender()`
+
+From outside the system, **`render()` cannot be called directly**. All triggers pass through a single gate:
+
+```typescript
+_requestRender(reason?: string)
+```
+
+- Hass updates → `_requestRender('hass')`
+- Resize events → `_requestRender('resize')`
+- zIndex changes → `_requestRender('zindex')`
+- Mouse/camera movements → `_requestRender('controls')`
+
+### Two Core Locking Mechanisms
+
+#### `rafId` – Dual Engine Protection
+- Prevents multiple `requestAnimationFrame` calls from running simultaneously
+- Eliminates the "dual engine" or "two parallel loops" problem at its root
+
+#### `renderPending` – Frame Consolidation
+- Regardless of how many triggers occur within the same frame, **only one render operation** executes
+- **100 triggers → 1 render** guarantee
+
+> ⚠️ **Critical Distinction:** Render can be **triggered** but may **not execute**. This allows the scheduler to manage "awake/sleep" states.
+
+---
+
+## Engine State Management: The Engine Awake Concept
+
+### Problem: Model Loading ≠ Engine Ready
+
+In the old structure, when the model loaded, the engine was assumed to be ready. However, for the engine to function, the following are required:
+- Scene graph
+- Camera and renderer
+- Controls (OrbitControls)
+- Object index (for raycasting)
+- Event listeners
+
+### Solution: Explicit State Flags
+
+```typescript
+_engineAwake = false  // Are scene, camera, renderer, controls ready?
+_modelReady = false   // Is model loading complete?
+_bootstrapApplied = false // Has the initial state snapshot been applied?
+_pendingHass: HomeAssistant | null // States received before engine awake
+```
+
+**Golden Rule:**
+- The Hass setter does not have to apply state "immediately to the scene"
+- If the engine is not awake, only a "pending snapshot" is stored
+- When the engine becomes awake, **once** bootstrap apply runs and render is scheduled
+
+---
+
+## State → Index → Apply → Render Chain
+
+### Index Space Integrity
+
+All runtime arrays (`_states[]`, `_position[]`, `_color[]`, `_brightness[]`) must exactly match `config.entities.length` and be perfectly aligned:
+
+- Each index `i` must represent the same entity
+- Even for non-cover entities, a `_position[i] = null` slot must exist
+- No entity should be skipped, no slot should remain empty
+
+### 0 Valid Rule
+
+For covers, `current_position = 0` is a valid value:
+
+```typescript
+// WRONG: if (attr) → treats 0 as "false"
+if (attr) { ... }
+
+// CORRECT: Explicit null/undefined check
+if (attr !== undefined && attr !== null) { ... }
+```
+
+### Bootstrap Apply Process
+
+After the engine becomes awake:
+1. Apply runs for all entities from the available hass snapshot
+2. After apply completes, `requestRender()` is scheduled
+3. Done once, in order, deterministically
+
+---
+
+## Single Engine Principle
+
+A system component with the same name can run **only once**:
+
+- Interval timers
+- Resize observers
+- Event listeners
+- Schedulers
+
+**If duplicates exist:**
+- The engine is not deterministic
+- Memory bloat and performance degradation are inevitable
+- Lifecycle issues arise
+
+---
+
+## Input ≠ Render Separation
+
+**Old Logic:** Every input → immediate render
+
+**New Logic:**
+- Input → notify engine
+- Engine → evaluate state
+- If needed → schedule `requestRender()`
+
+This separation maintains the "instant response when touched" feeling, especially on weak devices, while keeping render load controlled.
+
+---
+
+## Result: Game-Engine Render Gate
+
+The core of the backbone:
+
+```
+RAF id + renderPending + single scheduler
+```
+
+**Characteristics:**
+- `requestAnimationFrame` serves as the single gate
+- 100 triggers in the same frame → 1 render
+- Render is not called directly, but scheduled
+- `canRender()` only decides "can we render now?"
+- zIndex/edit/hass changes do not kill the scheduler, only pause it
+
+**This is a classic game-engine render gate.**
+
+Thanks to this structure, floor3d-card remains deterministic, stable, and performant even with hundreds of entities and complex models. This is not a UI hack, but a true game engine backbone.
+
+
 # Three.js Game-Engine Style Asset Cache
 
 ### Deterministic, Per-Instance Clone Architecture for UI-Driven 3D Scenes
