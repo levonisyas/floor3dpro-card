@@ -120,7 +120,7 @@ pro_log: engine
 
 ---
 
-## Build Chain (`floor3d-card-pro`)
+## Build Chain (`Floor3D [PRO] Card`)
 
 ### Supported / Verified Environment
 - **OS:** Windows
