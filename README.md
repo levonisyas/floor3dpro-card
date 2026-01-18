@@ -1,6 +1,11 @@
 # Floor3D [PRO] Card  
 ## Your Home Digital Twin – Game Engine Backbone Edition
 ---
+## 🔗 Floor3D [PRO] Card (source & documentation):  
+- **https://github.com/levonisyas/floor3dpro-card**
+- **https://community.home-assistant.io/t/your-home-digital-twin-interactive-floor-3d-plan-pro/**
+
+---
 <img width="1200" height="643" alt="image" src="https://github.com/user-attachments/assets/baa83f4f-d068-4f7b-9397-1a39fd71791f" />
 
 ---
