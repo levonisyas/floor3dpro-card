@@ -26,11 +26,18 @@ import { Object3D } from 'three';
 import '../elements/button';
 
 /* eslint no-console: 0 */
+const title = '  FLOOR3D[PRO]-CARD ';
+const version = `  ${localize('common.version')} ${CARD_VERSION}    `;
+
+// En uzun satırı baz al
+const width = Math.max(title.length, version.length);
+
 console.info(
-  `%c  FLOOR3D[PRO]-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
+  `%c${title.padEnd(width)}\n%c${version.padEnd(width)}`,
   'color: orange; font-weight: bold; background: black',
   'color: white; font-weight: bold; background: dimgray',
 );
+
 
 //Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
 // This puts your card into the UI card picker dialog
@@ -192,6 +199,10 @@ export class Floor3dCard extends LitElement {
   private _proOnce: { awake_hass: boolean; awake_model: boolean; bootstrap_apply: boolean };
   private _proLastLogAt: Record<string, number>;
   private _proThrottleMs: number;
+  // Faz-1 PRO Skill: LEVEL (workload + log) - opt-in via pro_skill: 'level'
+  private _proLevelLastHighestVisible: number | null = null;
+  private _proLevelExteriorCount = 0;
+  private _proLevelCountByLevel: Record<number, number> = {};
 
   constructor() {
     super();
@@ -326,6 +337,7 @@ export class Floor3dCard extends LitElement {
       path: path,
       //up_log: 'true',
       pro_log: 'engine',
+      pro_skill: 'false',
       name: 'Floor3D-Pro',
       objfile: 'demo.glb',
       lock_camera: 'no',
@@ -405,6 +417,19 @@ export class Floor3dCard extends LitElement {
       });
       i += 1;
     });
+    // Faz-1 PRO Skill: LEVEL - precompute counts (O(N) once, O(1) on clicks)
+    this._proLevelExteriorCount = 0;
+    this._proLevelCountByLevel = {};
+    if (this._config?.entities?.length) {
+      for (const ent of this._config.entities as any[]) {
+        const lvl = this._getEntityLevel(ent);
+        if (lvl === -1) {
+          this._proLevelExteriorCount++;
+        } else {
+          this._proLevelCountByLevel[lvl] = (this._proLevelCountByLevel[lvl] ?? 0) + 1;
+        }
+      }
+    }
 
     console.log('floor3d-card: Set Config End');
 
@@ -632,6 +657,18 @@ export class Floor3dCard extends LitElement {
 
     console.log(`pro.[ENGINE] ${message}`);
   }
+
+  private _proLevelLog(message: string, throttleKey: string): void {
+    if (!this._proSkillEnabled('level')) return;
+
+    const now = Date.now();
+    const last = this._proLastLogAt[throttleKey] ?? 0;
+    if (now - last < this._proThrottleMs) return;
+    this._proLastLogAt[throttleKey] = now;
+
+    console.log(`pro.[LEVEL] ${message}`);
+  }
+
   // Faz-0 Engine Backbone: (Stabil.Patch.0.0) Functions Starts
   private _canRender(): boolean {
     if (!this._isConnected) return false;
@@ -703,6 +740,18 @@ export class Floor3dCard extends LitElement {
       this._config.entities.forEach((entity, i) => {
         for (let j = 0; j < this._object_ids[i].objects.length; j++) {
           if (this._object_ids[i].objects[j].object_id == intersects[0].object.name) {
+            // Faz-1 PRO Skill: LEVEL interaction guard (double click)
+            if (!this._isEntityActiveForCurrentLevel(entity)) {
+              const highest = this._getHighestVisibleLevel();
+              const lvl = this._getEntityLevel(entity);
+              this._proLevelLog(
+                `Click blocked: entityLevel=${lvl}, highestVisible=${highest}, object=${intersects[0].object.name}`,
+                'level:click_blocked'
+              );
+              return;
+            }
+            // End LEVEL guard
+
             if (this._config.entities[i].action) {
               switch (this._config.entities[i].action) {
                 case 'more-info':
@@ -740,6 +789,18 @@ export class Floor3dCard extends LitElement {
       this._config.entities.forEach((entity, i) => {
         for (let j = 0; j < this._object_ids[i].objects.length; j++) {
           if (this._object_ids[i].objects[j].object_id == intersects[0].object.name) {
+            // Faz-1 PRO Skill: LEVEL interaction guard (long press)
+            if (!this._isEntityActiveForCurrentLevel(entity)) {
+              const highest = this._getHighestVisibleLevel();
+              const lvl = this._getEntityLevel(entity);
+              this._proLevelLog(
+                `Click blocked: entityLevel=${lvl}, highestVisible=${highest}, object=${intersects[0].object.name}`,
+                'level:click_blocked'
+              );
+              return;
+            }
+            // End LEVEL guard
+
             if (this._config.entities[i].long_press_action) {
               switch (this._config.entities[i].long_press_action) {
                 case 'more-info':
@@ -805,6 +866,26 @@ export class Floor3dCard extends LitElement {
         render(this._getSelectionBar(), this._selectionbar);
         return;
       }
+
+      // Faz-1 PRO Skill: LEVEL click guard (does not break normal usage)
+      // - Never block edit mode (object name discovery)
+      // - Never block selection mode (already handled above)
+      if (!getLovelace().editMode) {
+        const idx = this._findEntityIndexByObjectName(objectName);
+        if (idx !== -1) {
+          const cfgEntity: any = this._config.entities[idx];
+          if (!this._isEntityActiveForCurrentLevel(cfgEntity)) {
+            const highest = this._getHighestVisibleLevel();
+            const lvl = this._getEntityLevel(cfgEntity);
+            this._proLevelLog(
+              `Click blocked: entityLevel=${lvl}, highestVisible=${highest}, object=${objectName}`,
+              'level:click_blocked'
+            );
+            return;
+          }
+        }
+      }
+      // End LEVEL click guard
 
       this._config.entities.forEach((entity, i) => {
         if (entity.type3d == 'light' || entity.type3d == 'gesture' || entity.type3d == 'camera') {
@@ -1036,6 +1117,51 @@ export class Floor3dCard extends LitElement {
     }
   }
 
+  // Faz-1 PRO Skill: LEVEL helpers
+  private _getEntityLevel(entity: any): number {
+    const raw = entity?.level;
+    if (raw === undefined || raw === null || raw === '') return 0;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  private _getHighestVisibleLevel(): number {
+    // Deterministic source: _displaylevels[]
+    if (!this._displaylevels || this._displaylevels.length === 0) return 0;
+
+    let highest = -1;
+    for (let i = 0; i < this._displaylevels.length; i++) {
+      if (this._displaylevels[i] === true) highest = i;
+    }
+    return highest >= 0 ? highest : 0;
+  }
+
+  private _isEntityActiveForCurrentLevel(entity: any): boolean {
+    // If pro_skill does NOT include 'level', do nothing (original behavior)
+    if (!this._proSkillEnabled('level')) return true;
+
+    const lvl = this._getEntityLevel(entity);
+    if (lvl === -1) return true; // 7/24: camera, alarm, heating, etc.
+
+    const highest = this._getHighestVisibleLevel();
+    return lvl === highest;
+  }
+
+  // Fast mapping: objectName -> entity index (no full scan on click)
+  private _findEntityIndexByObjectName(objectName: string): number {
+    if (!this._object_ids || !this._object_ids.length) return -1;
+
+    for (let i = 0; i < this._object_ids.length; i++) {
+      const objs = this._object_ids[i]?.objects;
+      if (!objs || !objs.length) continue;
+
+      for (let j = 0; j < objs.length; j++) {
+        if (objs[j]?.object_id === objectName) return i;
+      }
+    }
+    return -1;
+  }
+
   public set hass(hass: HomeAssistant) {
     try {
       //called by Home Assistant Lovelace when a change of state is detected in entities
@@ -1173,6 +1299,12 @@ export class Floor3dCard extends LitElement {
             }
           }
           this._config.entities.forEach((entity, i) => {
+            // Faz-1 PRO Skill: LEVEL early-exit (workload filter)
+            // Inactive levels: no state work, no update calls, no render reasons.
+            if (!this._isEntityActiveForCurrentLevel(entity)) {
+              return;
+            }
+
             if (hass.states[entity.entity]) {
               let state = this._statewithtemplate(entity);
               // Faz-0 Deterministic Correction: (Fix) Cover position initialization (Original file error correction)
@@ -1979,6 +2111,23 @@ export class Floor3dCard extends LitElement {
     });
     this._updateRaycasting();
     render(this._getLevelBar(), this._levelbar);
+
+    // Faz-1 PRO Skill: LEVEL active rule log (one-line, no spam)
+    if (this._proSkillEnabled('level')) {
+      const highest = this._getHighestVisibleLevel();
+      if (this._proLevelLastHighestVisible !== highest) {
+        this._proLevelLastHighestVisible = highest;
+
+        const total = this._config?.entities?.length ?? 0;
+        const activeCount =
+          this._proLevelExteriorCount + (this._proLevelCountByLevel[highest] ?? 0);
+
+        this._proLevelLog(
+          `Active rule: level -1 + highestVisible=${highest} | active=${activeCount}/${total}`,
+          'level:active_rule'
+        );
+      }
+    }
   }
 
   private _toggleVisibleLevel(level: number): void {
@@ -1991,6 +2140,27 @@ export class Floor3dCard extends LitElement {
       element.visible = this._displaylevels[i];
     });
     this._updateRaycasting();
+
+    // Faz-1 PRO Skill: LEVEL active rule log (one-line, no spam)
+    if (this._proSkillEnabled('level')) {
+      const highest = this._getHighestVisibleLevel();
+      if (this._proLevelLastHighestVisible !== highest) {
+        this._proLevelLastHighestVisible = highest;
+
+        const total = this._config?.entities?.length ?? 0;
+        let activeCount = 0;
+        for (let i = 0; i < total; i++) {
+          if (this._isEntityActiveForCurrentLevel(this._config.entities[i])) {
+            activeCount++;
+          }
+        }
+
+        this._proLevelLog(
+          `Active rule: level -1 + highestVisible=${highest} | active=${activeCount}/${total}`,
+          'level:active_rule'
+        );
+      }
+    }
   }
 
   // Faz-0 Engine Backbone: (Upgraded) No concat Update raycasting objects based on currently displayed levels
