@@ -7,7 +7,7 @@
 >- **<https://community.home-assistant.io/t/your-home-digital-twin-interactive-floor-3d-plan-pro/>**
 
 ---
-<img width="1200" height="643" alt="image" src="upload://5tMBhFZphdDkL5TtjzOwO2eE5du.jpeg">
+<img width="1200" height="643" alt="image" src="demo/demo.jpg">
 
 ---
 
@@ -85,6 +85,20 @@ A **deterministic cache and promise coalescing** strategy uses a **strict cache 
 Cached assets remain **read-only**, while each instance receives **isolated materials, geometry, textures, and transforms** on a **shared backbone**.
 
 The engine loop remains **unchanged** (`State → Index → Apply → Render`), but the backbone becomes **stable**, **deterministic**, and **immune to UI-driven chaos**.
+
+---
+
+## Floor3D Pro enforces Home Assistant card editing through a deterministic transactional editor, which acts as a game‑engine backbone.
+
+It replaces uncontrolled edit‑time rebuilds with a **deterministic transactional editor pipeline** governed by a single commit gate.
+
+All editor inputs—typing, selection changes, entity operations, and structural edits—pass through a **controlled draft‑and‑commit flow**, ensuring **100 micro‑changes → 1 commit**.
+
+The editor enforces **state separation and transactional integrity**, clearly distinguishing draft mutations from committed updates to prevent premature rebuilds.
+
+A strict **Draft → Commit → Apply** chain and enforced transactional boundaries ensure smooth, predictable editing behavior, even in complex multi‑entity configurations.
+
+This transactional editor backbone improves **responsiveness and reliability**, eliminating jitter, random rebuilds, and F5‑style refresh storms while delivering a stable, game‑engine‑like editing experience even on low‑power devices.
 
 ---
 

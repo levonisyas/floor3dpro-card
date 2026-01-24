@@ -389,6 +389,190 @@ Just one rule:
 Everything else builds cleanly on top of that.
 
 ---
+
+# Floor3D Pro: Transactional Editor Backbone and Deterministic Edit Pipeline
+
+## Context: Transition from UI‑Driven Editing to Engine‑Grade Editing Logic
+
+The original floor3d-card introduced a powerful idea: a true digital twin inside Home Assistant.  
+But as configurations grow, entity counts increase, and editing becomes more complex, UI‑driven editing begins to show its limits.  
+The issue is not design quality — it is simply that **UI‑driven editors do not scale like game engines**.
+
+This work focuses on stabilization and determinism, not rewriting the concept.
+
+---
+
+## Core Problem: Uncontrolled Edit‑Time Rebuilds
+
+**Previous State (UI Component Editing Logic):**
+- Typing could trigger preview rebuilds  
+- Selection changes could trigger rebuilds  
+- Entity edits could trigger rebuilds  
+- Structural changes could trigger rebuilds  
+
+**Consequences:**
+- Random preview recreation  
+- Heavy rebuilds during typing  
+- Lag and jitter in the editor  
+- “F5‑style refresh storms”  
+- Unpredictable editing experience  
+
+---
+
+## Solution: Deterministic Transactional Editor
+
+This is **not a classic game loop**, but a **deterministic edit pipeline**.
+
+### Single Commit Gate: `_commitConfig()`
+
+From outside the system, **no heavy operation can run directly**.  
+All edit‑time triggers pass through a single transactional gate:
+
+- Typing → draft  
+- Selection changes → draft  
+- Entity operations → draft  
+- Structural edits → draft  
+
+Only the commit gate decides when the editor transitions from draft to applied state.
+
+---
+
+## Draft → Commit → Apply Chain
+
+### Draft Layer  
+All micro‑changes accumulate here:
+
+- `_valueChanged` = draft  
+- typing = draft  
+- pre‑selection = draft  
+
+Nothing rebuilds.  
+Nothing applies to the preview.  
+This is pure editor‑state mutation.
+
+### Commit Gate  
+A single, deterministic transition:
+
+- `_commitConfig()` = transaction gate  
+- debounce = batch  
+- one `config-changed` = one deterministic apply  
+
+This is the exact analogue of:
+
+**“Commit point into the scene graph.”**
+
+### Apply Layer  
+Heavy operations — such as preview card recreation — run **only** here, and **only** once per commit.
+
+---
+
+## Game‑Engine Perspective: One‑to‑One Mapping
+
+A real game engine separates editing from committing.  
+Floor3D Pro now mirrors that architecture.
+
+### **1️⃣ Editor State (Draft)**  
+In a game engine:
+
+- sliders move  
+- entities shift  
+- parameters change  
+- the scene does *not* rebuild  
+
+Only the editor state mutates.
+
+**Our equivalent:**  
+- `_valueChanged`  
+- typing  
+- selection pre‑state  
+
+All remain in the draft layer.
+
+---
+
+### **2️⃣ Commit / Transaction Gate**  
+In a game engine:
+
+- the user finishes an action  
+- the engine accepts it  
+- everything passes through one gate  
+
+**Our equivalent:**  
+- `_commitConfig()`  
+- batched updates  
+- one deterministic apply  
+
+This is the structural backbone of the editor.
+
+---
+
+### **3️⃣ Heavy Rebuild Only at Intentional Points**  
+A game engine never rebuilds the scene on every mouse move.  
+It rebuilds only at commit/apply.
+
+**Our equivalent:**  
+- preview recreation = heavy rebuild  
+- removed from typing  
+- removed from micro‑changes  
+- removed from spam  
+
+It now happens **only** when the commit gate is crossed.
+
+---
+
+## Why This Qualifies as an Engine Backbone
+
+Because this work is not about:
+
+❌ speeding up a line of code  
+❌ optimizing a loop  
+❌ making rendering prettier  
+
+It is about establishing the three pillars every engine requires:
+
+- **Time separation**  
+- **State separation**  
+- **Authority separation**  
+
+Without these:
+
+- there is no engine  
+- there is no editor  
+- there is no stability  
+
+This is why the structure qualifies as a backbone.
+
+---
+
+## Technical Name of the Backbone
+
+**Transactional Editor Backbone**  
+or in game‑engine terminology:
+
+**Editor → Scene Commit Pipeline**
+
+And in your own words:
+
+**“We aligned the Edit Card flow to the backbone.  
+We did not bend the backbone to the Edit Card.”**
+
+---
+
+>## Deterministic Correction: (Fix)  
+>*Repairs the original behavior through a clean, deterministic game‑engine backbone..*
+
+* **Overlay is display‑only** — must not block clicks on level/zoom controls  
+* **Touchstart listener marked passive** — prevents scroll‑blocking violations  
+* **Canvas obscurity logic corrected** — animation stops only when a real dialog/overlay is present, not when root containers appear  
+* **Edit-Card preview guard added** — unsafe DOM traversal no longer crashes the card  
+* **Raycasting concat pressure eliminated** — deterministic rebuild without array growth  
+* **Cover/Index alignment restored** — _states and _position now map deterministically, including valid 0 positions  
+* **Editor lifecycle guard added** — early render() calls no longer risk undefined-access crashes  
+* **Edit‑Card fallback template enabled** — hostile lifecycle states no longer break the editor  
+* **DOM custom‑element isolation added** — original and Pro cards can run side‑by‑side without conflict.
+
+---
+
 ## Additional PRO Features
 
 **`pro_log?: 'engine' | 'level' | 'all'`**
