@@ -217,3 +217,90 @@ export const loadHaYamlEditor = async () => {
   const devToolsRouter = document.createElement("developer-tools-router");
   await (devToolsRouter as any)?.routerOptions?.routes?.service?.load?.();
 };
+
+// Faz-0 PRO Backbone Runtime: single-center pro_log / pro_skill (no domain logs here)
+export type ProSkillDomain = 'level' | 'editor' | 'mobile';
+export type ProSkillSet = { level: boolean; editor: boolean; mobile: boolean };
+export type ProLogChannel = 'engine' | 'all';
+
+export type ProLogState = {
+  once: Record<string, boolean>;
+  lastAt: Record<string, number>;
+  throttleMs: number;
+};
+
+export function createProLogState(throttleMs = 2000): ProLogState {
+  return { once: {}, lastAt: {}, throttleMs };
+}
+
+export function proNormalizeSet<T extends string>(value: any, allowed: readonly T[]): Set<T> {
+  const out = new Set<T>();
+
+  // OPT-IN: no value => empty set
+  if (value === undefined || value === null || value === '') {
+    return out;
+  }
+
+  const pushOne = (v: any) => {
+    if (typeof v !== 'string') return;
+    const s = v.trim();
+    if (s === 'all') {
+      allowed.forEach((k) => out.add(k));
+      return;
+    }
+    if ((allowed as readonly string[]).includes(s)) {
+      out.add(s as T);
+    }
+  };
+
+  if (Array.isArray(value)) {
+    value.forEach(pushOne);
+    return out;
+  }
+
+  pushOne(value);
+  return out;
+}
+
+export function proGetSkillSet(config?: Floor3dCardConfig): ProSkillSet {
+  const skillAllowed = ['level', 'editor', 'mobile'] as const;
+  const set = proNormalizeSet(config?.pro_skill, skillAllowed);
+
+  return {
+    level: set.has('level'),
+    editor: set.has('editor'),
+    mobile: set.has('mobile'),
+  };
+}
+
+export function proGetLogSet(config?: Floor3dCardConfig): Set<ProLogChannel> {
+  const logAllowed = ['engine', 'all'] as const;
+  return proNormalizeSet(config?.pro_log, logAllowed);
+}
+
+export function proSkillEnabled(skillSet: ProSkillSet, domain: ProSkillDomain): boolean {
+  return skillSet[domain] === true;
+}
+
+export function proLog(
+  state: ProLogState,
+  enabled: boolean,
+  channel: 'ENGINE' | 'EDITOR' | 'LEVEL',
+  message: string,
+  throttleKey: string,
+  onceKey?: string,
+): void {
+  if (!enabled) return;
+
+  if (onceKey) {
+    if (state.once[onceKey]) return;
+    state.once[onceKey] = true;
+  }
+
+  const now = Date.now();
+  const last = state.lastAt[throttleKey] ?? 0;
+  if (now - last < state.throttleMs) return;
+  state.lastAt[throttleKey] = now;
+
+  console.log(`pro.[${channel}] ${message}`);
+}

@@ -10,7 +10,17 @@ import {
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import './editor';
 import { HassEntity } from 'home-assistant-js-websocket';
-import { createConfigArray, createObjectGroupConfigArray, getLovelace } from './helpers';
+import {
+  createConfigArray,
+  createObjectGroupConfigArray,
+  getLovelace,
+  createProLogState,
+  proGetSkillSet,
+  proGetLogSet,
+  proSkillEnabled,
+  proLog,
+  ProLogState,
+} from './helpers';
 import type { Floor3dCardConfig } from './types';
 import { CARD_VERSION } from './const';
 import { localize } from './localize/localize';
@@ -83,6 +93,9 @@ function __deepCloneObject(source: THREE.Object3D): THREE.Object3D {
 
   clone.traverse((node: any) => {
     if (node.isMesh) {
+      // Faz-0 (weak-device stabilization):
+      // - Materials must be per-instance (mutated by apply layer)
+      // - Geometry/Textures are immutable in this card → keep shared to avoid heap/VRAM growth
       if (node.material) {
         if (Array.isArray(node.material)) {
           node.material = node.material.map((m: THREE.Material) => m.clone());
@@ -90,9 +103,7 @@ function __deepCloneObject(source: THREE.Object3D): THREE.Object3D {
           node.material = node.material.clone();
         }
       }
-      if (node.geometry) {
-        node.geometry = node.geometry.clone();
-      }
+      // NOTE: Do NOT clone geometry here (shared)
     }
   });
 
@@ -196,9 +207,7 @@ export class Floor3dCard extends LitElement {
   // Faz-0 PRO Backbone: pro-skill / pro-log
   private _proSkillSet: { level: boolean; editor: boolean; mobile: boolean };
   private _proLogEngine: boolean;
-  private _proOnce: { awake_hass: boolean; awake_model: boolean; bootstrap_apply: boolean };
-  private _proLastLogAt: Record<string, number>;
-  private _proThrottleMs: number;
+  private _proLogState: ProLogState;
   // Faz-1 PRO Skill: LEVEL (workload + log) - opt-in via pro_skill: 'level'
   private _proLevelLastHighestVisible: number | null = null;
   private _proLevelExteriorCount = 0;
@@ -222,9 +231,7 @@ export class Floor3dCard extends LitElement {
     // Faz-0 PRO Backbone: OPT-IN defaults: everything OFF unless user enables
     this._proSkillSet = { level: false, editor: false, mobile: false };
     this._proLogEngine = false;
-    this._proOnce = { awake_hass: false, awake_model: false, bootstrap_apply: false };
-    this._proLastLogAt = {};
-    this._proThrottleMs = 2000;
+    this._proLogState = createProLogState(2000);
 
     this._resizeObserver = new ResizeObserver(() => {
       this._resizeCanvasDebounce();
@@ -336,8 +343,8 @@ export class Floor3dCard extends LitElement {
       //type: 'custom:floor3dpro-card',
       path: path,
       //up_log: 'true',
-      pro_log: 'engine',
-      pro_skill: 'false',
+      pro_log: [],
+      pro_skill: [],
       name: 'Floor3D-Pro',
       objfile: 'demo.glb',
       lock_camera: 'no',
@@ -585,57 +592,23 @@ export class Floor3dCard extends LitElement {
     this._renderer.render(this._scene, this._camera);
   }
   // Faz-0 PRO Backbone: pro-skill / pro-log Functions Starts
-  private _proNormalizeSet<T extends string>(
-    value: any,
-    allowed: readonly T[],
-  ): Set<T> {
-    const out = new Set<T>();
-
-    // OPT-IN: no value => empty set
-    if (value === undefined || value === null || value === '') {
-      return out;
-    }
-
-    const pushOne = (v: any) => {
-      if (typeof v !== 'string') return;
-      const s = v.trim();
-      if (s === 'all') {
-        allowed.forEach((k) => out.add(k));
-        return;
-      }
-      if ((allowed as readonly string[]).includes(s)) {
-        out.add(s as T);
-      }
-    };
-
-    if (Array.isArray(value)) {
-      value.forEach(pushOne);
-      return out;
-    }
-
-    pushOne(value);
-    return out;
-  }
-
   private _proApplyConfig(): void {
-    const skillAllowed = ['level', 'editor', 'mobile'] as const;
-    const logAllowed = ['engine'] as const;
-
-    const skillSet = this._proNormalizeSet(this._config?.pro_skill, skillAllowed);
-    const logSet = this._proNormalizeSet(this._config?.pro_log, logAllowed);
+    const skillSet = proGetSkillSet(this._config);
+    const logSet = proGetLogSet(this._config);
 
     this._proSkillSet = {
-      level: skillSet.has('level'),
-      editor: skillSet.has('editor'),
-      mobile: skillSet.has('mobile'),
+      level: skillSet.level,
+      editor: skillSet.editor,
+      mobile: skillSet.mobile,
     };
 
-    this._proLogEngine = logSet.has('engine');
+    // pro_log: engine | all
+    this._proLogEngine = logSet.has('engine') || logSet.has('all');
   }
 
   // Gate API (domain packets ask for this at the entry point)
   private _proSkillEnabled(domain: 'level' | 'editor' | 'mobile'): boolean {
-    return this._proSkillSet[domain] === true;
+    return proSkillEnabled(this._proSkillSet, domain);
   }
 
   private _proEngineLog(
@@ -643,30 +616,11 @@ export class Floor3dCard extends LitElement {
     throttleKey: string,
     onceKey?: 'awake_hass' | 'awake_model' | 'bootstrap_apply',
   ): void {
-    if (!this._proLogEngine) return;
-
-    if (onceKey) {
-      if (this._proOnce[onceKey]) return;
-      this._proOnce[onceKey] = true;
-    }
-
-    const now = Date.now();
-    const last = this._proLastLogAt[throttleKey] ?? 0;
-    if (now - last < this._proThrottleMs) return;
-    this._proLastLogAt[throttleKey] = now;
-
-    console.log(`pro.[ENGINE] ${message}`);
+    proLog(this._proLogState, this._proLogEngine, 'ENGINE', message, throttleKey, onceKey);
   }
 
   private _proLevelLog(message: string, throttleKey: string): void {
-    if (!this._proSkillEnabled('level')) return;
-
-    const now = Date.now();
-    const last = this._proLastLogAt[throttleKey] ?? 0;
-    if (now - last < this._proThrottleMs) return;
-    this._proLastLogAt[throttleKey] = now;
-
-    console.log(`pro.[LEVEL] ${message}`);
+    proLog(this._proLogState, this._proSkillEnabled('level'), 'LEVEL', message, throttleKey);
   }
 
   // Faz-0 Engine Backbone: (Stabil.Patch.0.0) Functions Starts

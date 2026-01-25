@@ -9,6 +9,9 @@ import {
   arrayMove,
   createEditorObjectGroupConfigArray,
   createEditorZoomConfigArray,
+  createProLogState,
+  proGetLogSet,
+  proLog,
 } from './helpers';
 import { loadHaComponents } from './ensureComponents';
 import { Floor3dCardConfig } from './types';
@@ -40,44 +43,12 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
   // Faz-0 Editor Backbone: Commit debounce (ms)
   private _commitDebounceMs = 400;
-  // Faz-0 PRO Backbone (Editor): pro-log (throttled, opt-in)
+  // Faz-0 PRO Backbone (Editor): single-center pro_log (throttled, opt-in)
   private _proLogEditor = false;
-  private _proOnce: { connected: boolean; setconfig: boolean } = { connected: false, setconfig: false };
-  private _proLastLogAt: Record<string, number> = {};
-  private _proThrottleMs = 2000;
-
-  private _proNormalizeSet<T extends string>(value: any, allowed: readonly T[]): Set<T> {
-    const out = new Set<T>();
-
-    // OPT-IN: no value => empty set
-    if (value === undefined || value === null || value === '') {
-      return out;
-    }
-
-    const pushOne = (v: any) => {
-      if (typeof v !== 'string') return;
-      const s = v.trim();
-      if (s === 'all') {
-        allowed.forEach((k) => out.add(k));
-        return;
-      }
-      if ((allowed as readonly string[]).includes(s)) {
-        out.add(s as T);
-      }
-    };
-
-    if (Array.isArray(value)) {
-      value.forEach(pushOne);
-      return out;
-    }
-
-    pushOne(value);
-    return out;
-  }
+  private _proLogState = createProLogState(2000);
 
   private _proApplyConfig(): void {
-    const logAllowed = ['engine', 'all'] as const;
-    const logSet = this._proNormalizeSet(this._config?.pro_log, logAllowed);
+    const logSet = proGetLogSet(this._config);
 
     // Editor log’u: pro_log içinde 'engine' veya 'all' varsa aç
     this._proLogEditor = logSet.has('engine') || logSet.has('all');
@@ -88,19 +59,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     throttleKey: string,
     onceKey?: 'connected' | 'setconfig',
   ): void {
-    if (!this._proLogEditor) return;
-
-    if (onceKey) {
-      if (this._proOnce[onceKey]) return;
-      this._proOnce[onceKey] = true;
-    }
-
-    const now = Date.now();
-    const last = this._proLastLogAt[throttleKey] ?? 0;
-    if (now - last < this._proThrottleMs) return;
-    this._proLastLogAt[throttleKey] = now;
-
-    console.log(`pro.[EDITOR] ${message}`);
+    proLog(this._proLogState, this._proLogEditor, 'EDITOR', message, throttleKey, onceKey);
   }
   // Faz-0 Editor Backbone:
   private _commitConfig(reason?: string): void {
