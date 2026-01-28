@@ -182,20 +182,69 @@ pro_skill: level
 
 ---
 
-### Editor‑only Mode (PRO) — Coming Soon
+### Deterministic Manual‑Commit Editing (Pro Skill: `editor`)  
+`Release: 1.5.3‑Pro.Faz.1.B`
 
-Editor mode functions as a **configuration scene**, not a live environment:
+---
 
-- object mapping  
-- camera setup  
-- visual alignment  
+This skill introduces a deterministic **manual‑commit editing model** for complex 3D setups where automatic commits cause instability or preview resets.  
+It changes **how** edits are committed — not **what** can be edited.
 
-All real Home Assistant behaviors are intentionally disabled.
+When enabled:
 
-In short:  
-**“Edit Card = setup scene, not runtime.”**
+- Automatic `config-changed` commits are disabled  
+- All editing actions remain fully interactive  
+- Editor updates stay local  
+- No debounce, no background commits, no preview‑triggered commits, no commit‑spam
 
-This prevents accidental interactions and keeps the editing workflow predictable.
+Editing becomes **free**, but applying changes becomes **intentional**.
+
+A dedicated **SAVE/Commit Changes** button appears.  
+This is the **only** allowed path for configuration updates.
+
+<span style="color:red">To apply your changes, press the **Commit Changes** button.</span>
+
+- One click → one deterministic commit  
+- No alternative commit routes  
+- No auto‑commit, no lifecycle commits, no preview commits  
+
+This enforces a clean **draft → commit → apply** pipeline.
+
+Why this exists:
+
+- Prevents preview rebuild storms  
+- Prevents model reload loops  
+- Prevents editor flicker or resets  
+- Prevents incomplete configs being sent to HA  
+- Keeps editing responsive on weak devices  
+
+With this skill, configuration is committed **once**, intentionally.
+
+**Activation** *(This feature is **opt-in** and disabled by default.)*
+
+```yaml
+pro_skill: editor
+```
+
+Design principle:
+
+**Editor input is free. Commit is intentional.**
+
+What it disables:
+
+- Navigation‑triggered commits  
+- Focus/scroll commits  
+- Preview lifecycle commits  
+- “New card” creation commits  
+- Any implicit `config-changed` spam  
+
+All changes remain local until manually committed.
+
+In plain terms:
+
+**Prevents the editor from “saving on every move”.**
+
+If previews break, cards re‑create themselves, or edits apply before you finish — this skill fixes exactly that.
 
 ---
 

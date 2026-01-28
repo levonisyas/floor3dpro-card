@@ -11,6 +11,8 @@ import {
   createEditorZoomConfigArray,
   createProLogState,
   proGetLogSet,
+  proGetSkillSet,
+  proSkillEnabled,
   proLog,
 } from './helpers';
 import { loadHaComponents } from './ensureComponents';
@@ -42,16 +44,35 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
   private _commitTimer?: number;
 
   // Faz-0 Editor Backbone: Commit debounce (ms)
-  private _commitDebounceMs = 400;
+  private _commitDebounceMs = 600;
   // Faz-0 PRO Backbone (Editor): single-center pro_log (throttled, opt-in)
   private _proLogEditor = false;
   private _proLogState = createProLogState(2000);
 
+  // Faz-0 PRO Backbone (Editor): pro_skill gate state (opt-in, default OFF)
+  private _proSkillSet: { level: boolean; editor: boolean; mobile: boolean } = {
+    level: false,
+    editor: false,
+    mobile: false,
+  };
+
   private _proApplyConfig(): void {
     const logSet = proGetLogSet(this._config);
+    const skillSet = proGetSkillSet(this._config);
 
     // Editor log’u: pro_log içinde 'engine' veya 'all' varsa aç
     this._proLogEditor = logSet.has('engine') || logSet.has('all');
+
+    // pro_skill (opt-in): default OFF unless user enables
+    this._proSkillSet = {
+      level: skillSet.level,
+      editor: skillSet.editor,
+      mobile: skillSet.mobile,
+    };
+  }
+
+  private _proSkillEnabled(domain: 'level' | 'editor' | 'mobile'): boolean {
+    return proSkillEnabled(this._proSkillSet, domain);
   }
 
   private _proEditorLog(
@@ -61,6 +82,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
   ): void {
     proLog(this._proLogState, this._proLogEditor, 'EDITOR', message, throttleKey, onceKey);
   }
+
+  private _proEditorlLog(message: string, throttleKey: string): void {
+    proLog(this._proLogState, this._proSkillEnabled('editor'), 'EDITOR', message, throttleKey);
+  }
+
   // Faz-0 Editor Backbone:
   private _commitConfig(reason?: string): void {
     if (!this._config || !this.hass) {
@@ -80,6 +106,24 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
         `config-changed fired${reason ? ` (${reason})` : ''}`,
         reason ? `config-changed:${reason}` : 'config-changed'
       );
+
+      // ETAP-2 GAME ENGINE GATE (LATE) — commit dispatch en sonda kesilir
+      // pro_skill: editor ON iken auto commit gönderilmez, sadece manual geçer
+      if (this._proSkillEnabled('editor') && reason !== 'manual') {
+        // Skill-gated DOMAIN LOG (anayasa uyumlu; pro_log ile karışmaz)
+        proLog(
+          this._proLogState,
+          this._proSkillEnabled('editor'),
+          'EDITOR',
+          'Active Commit Closed',
+          'editor:commit-closed',
+          'editor:commit-closed'
+        );
+
+        // Editor internal normalize (UI listesini toparla)
+        this.setConfig(this._config);
+        return;
+      }
 
       fireEvent(this, 'config-changed', { config: this._config });
     }, this._commitDebounceMs);
@@ -105,6 +149,17 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     // Faz-0 PRO Backbone (Editor): apply pro_log + once log
     this._proApplyConfig();
     this._proEditorLog('setConfig: applied', 'setConfig', 'setconfig');
+    // ETAP-2.4: pro_skill: editor ON → log once at config apply (deterministic)
+    if (this._proSkillEnabled('editor')) {
+      proLog(
+        this._proLogState,
+        true,
+        'EDITOR',
+        'Editor Active',
+        'editor:active',
+        'editor:active'
+      );
+    }
 
     if (!config.entities) {
       this._config.entities = [{ entity: '' }];
@@ -407,10 +462,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     }
     return true;
   }
-  // Faz-0 Editor Backbone: single commit gate
-  private _fieldFinished(): void {
-    this._commitConfig('fieldFinished');
-  }
 
   // Faz-0 Deterministic Correction: (Fix) Guard reflex (Original file error correction)
   // The render can run before setConfig() appears in the Edit Card context. (hostile lifecycle)
@@ -418,24 +469,56 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     if (!this._config) {
       return html``;
     }
-    // PRO Editor Commit Button (currently hidden)
-    // -----------------------------------------
-    // This mdi:refresh icon is the planned manual commit trigger
-    // for pro_skill: editor mode.
-    //
-    // Behavior (Faz.1):
-    // - While editing (typing / selecting): NO config-changed
-    // - This button will be the ONLY commit entry point
-    // - Single click → single config-changed → single preview rebuild
-    //
-    // NOTE:
-    // The button is intentionally not active/visible yet.
-    // It will be enabled once the editor backbone is finalized.
+
+    // PRO Editor Commit Button (currently not working)
     const show = this._config.overlay ? this._config.overlay == 'yes' : false;
     return html`
-      <div class="sub-category" style="display: flex; flex-direction: row; align-items: left;">
-        <ha-icon @click=${this._config_changed} icon="mdi:refresh" class="ha-icon-large"> </ha-icon>
-      </div>
+      ${this._proSkillEnabled('editor')
+        ? html`
+            <div class="sub-category" style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
+              <ha-icon
+                @click=${() => {
+                  this._proEditorlLog('Manual Commit Send', 'editor:manual-commit');
+                  this._commitConfig('manual');
+                }}
+                icon="mdi:content-save-cog-outline"
+                class="ha-icon-large"
+                style="
+                  /* ICON COLOR OPTIONS */
+                  /* color: var(--primary-text-color); */
+                  color: var(--error-color);
+                  /* alternatifler:
+                     color: var(--secondary-text-color);
+                     color: var(--error-color);      // kırmızı
+                     color: var(--warning-color);    // amber
+                     color: var(--accent-color);     // tema vurgu rengi
+                  */
+                "
+              >
+              </ha-icon>
+
+              <span
+                style="
+                  font-size: 16px;
+                  /* font-weight: 400; */
+                  line-height: 30px;
+                  margin-left: 7px;
+                  /* TEXT COLOR OPTIONS */
+                  /* color: var(--primary-text-color); */
+                  color: var(--error-color); 
+                  /* alternatifler:
+                     color: var(--secondary-text-color);
+                     color: var(--error-color);      // kırmızı
+                     color: var(--warning-color);    // amber
+                     color: var(--accent-color);     // tema vurgu rengi
+                  */
+                "
+              >
+                Commit Changes
+              </span>
+            </div>
+          `
+        : ``}
       ${this._createModelElement()} ${this._createAppearanceElement()}
       ${show ? html` ${this._createOverlayElement()} ` : ``} ${this._createEntitiesElement()}
       ${this._createObjectGroupsElement()} ${this._createZoomAreasElement()}
@@ -700,7 +783,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               ? html` <floor3dpro-select
                   label="Entity (Required)"
                   .value=${config.entity}
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .configAttribute=${'entity'}
                   .configObject=${this._configArray[index]}
                   .ignoreNull=${false}
@@ -916,7 +999,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   .configAttribute=${'name'}
                   @input=${this._valueChanged}
-                  @blur=${this._fieldFinished}
                 >
                 </floor3dpro-textfield>
                 <floor3dpro-textfield
@@ -926,7 +1008,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   .configAttribute=${'path'}
                   @input=${this._valueChanged}
-                  @blur=${this._fieldFinished}
                 ></floor3dpro-textfield>
                 <floor3dpro-textfield
                   label="Obj/Glb file"
@@ -935,7 +1016,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   .configAttribute=${'objfile'}
                   @input=${this._valueChanged}
-                  @blur=${this._fieldFinished}
                 ></floor3dpro-textfield>
                 <floor3dpro-textfield
                   label="Mtl Wavefront file"
@@ -944,7 +1024,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   .configAttribute=${'mtlfile'}
                   @input=${this._valueChanged}
-                  @blur=${this._fieldFinished}
                 ></floor3dpro-textfield>
                 <floor3dpro-textfield
                   label="Object list JSON"
@@ -952,7 +1031,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   .configAttribute=${'objectlist'}
                   @input=${this._valueChanged}
-                  @blur=${this._fieldFinished}
                 ></floor3dpro-textfield>
               </div>
             `
@@ -1002,7 +1080,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 <ha-select
                   label="Overlay Alignment"
                   size="40"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.overlay_alignment ? config.overlay_alignment : 'top-left'}
                   .configObject=${config}
                   .configAttribute=${'overlay_alignment'}
@@ -1089,11 +1167,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   .configAttribute=${'style'}
                   @input=${this._valueChanged}
-                  @blur=${this._fieldFinished}
                 ></floor3dpro-textfield>
                 <floor3dpro-select
                   label="Lock Camera (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.lock_camera ? config.lock_camera : 'no'}
                   .configObject=${config}
                   .configAttribute=${'lock_camera'}
@@ -1106,7 +1183,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="Selection Mode (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.selectionMode ? config.selectionMode : 'no'}
                   .configObject=${config}
                   .configAttribute=${'selectionMode'}
@@ -1119,7 +1196,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="Edit Mode PopUp (<yes>/no)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.editModeNotifications ? config.editModeNotifications : 'yes'}
                   .configObject=${config}
                   .configAttribute=${'editModeNotifications'}
@@ -1132,7 +1209,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="Header (<yes>/no)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.header ? config.header : 'yes'}
                   .configObject=${config}
                   .configAttribute=${'header'}
@@ -1145,7 +1222,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="Click (no dblclick, yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.click ? config.click : 'no'}
                   .configObject=${config}
                   .configAttribute=${'click'}
@@ -1158,7 +1235,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="Overlay (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.overlay ? config.overlay : 'no'}
                   .configObject=${config}
                   .configAttribute=${'overlay'}
@@ -1176,11 +1253,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   .configAttribute=${'backgroundColor'}
                   @input=${this._valueChanged}
-                  @blur=${this._fieldFinished}
                 ></floor3dpro-textfield>
                 <floor3dpro-select
                   label="Hide Levels Menu (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.hideLevelsMenu ? config.hideLevelsMenu : 'no'}
                   .configObject=${config}
                   .configAttribute=${'hideLevelsMenu'}
@@ -1207,7 +1283,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-formfield>
                 <floor3dpro-select
                   label="Shadow (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.shadow ? config.shadow : 'no'}
                   .configObject=${config}
                   .configAttribute=${'shadow'}
@@ -1220,7 +1296,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="+ Lights - Perf (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.extralightmode ? config.extralightmode : 'no'}
                   .configObject=${config}
                   .configAttribute=${'extralightmode'}
@@ -1233,7 +1309,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="Show Axes (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.show_axes ? config.show_axes : 'no'}
                   .configObject=${config}
                   .configAttribute=${'show_axes'}
@@ -1246,7 +1322,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 </floor3dpro-select>
                 <floor3dpro-select
                   label="Sky (yes/<no>)"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.sky ? config.sky : 'no'}
                   .configObject=${config}
                   .configAttribute=${'sky'}
@@ -1329,8 +1405,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     newArray.push(newObject);
     this._config.object_groups = newArray;
     this._commitConfig('addObject_Group');
-
-
   }
 
   private _addEntity(ev): void {
@@ -1348,8 +1422,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     newArray.push(newObject);
     this._config.entities = newArray;
     this._commitConfig('addEntity');
-    
-
   }
 
   private _addZoomArea(ev): void {
@@ -1367,8 +1439,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     newArray.push(newObject);
     this._config.zoom_areas = newArray;
     this._commitConfig('addZoomArea');
-
-
   }
 
   private _moveEntity(ev): void {
@@ -1381,8 +1451,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     else if (target.configDirection == 'down') newArray = arrayMove(newArray, target.index, target.index + 1);
     this._config.entities = newArray;
     this._commitConfig('moveEntity');
-
-
   }
 
   private _moveZoomArea(ev): void {
@@ -1395,8 +1463,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     else if (target.configDirection == 'down') newArray = arrayMove(newArray, target.index, target.index + 1);
     this._config.zoom_areas = newArray;
     this._commitConfig('moveZoomArea');
-
-
   }
 
   private _moveObject_Group(ev): void {
@@ -1409,8 +1475,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     else if (target.configDirection == 'down') newArray = arrayMove(newArray, target.index, target.index + 1);
     this._config.object_groups = newArray;
     this._commitConfig('moveObject_Group');
-
-
   }
 
   private _removeEntity(ev): void {
@@ -1429,8 +1493,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     const newConfig = { [target.configArray]: entitiesArray };
     this._config = Object.assign(this._config, newConfig);
     this._commitConfig('removeEntity');
-
-
   }
 
   private _removeZoomArea(ev): void {
@@ -1449,8 +1511,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     const newConfig = { [target.configArray]: zoomareasArray };
     this._config = Object.assign(this._config, newConfig);
     this._commitConfig('removeZoomArea');
-
-
   }
 
   private _removeObject_Group(ev): void {
@@ -1469,8 +1529,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     const newConfig = { [target.configArray]: object_groupsArray };
     this._config = Object.assign(this._config, newConfig);
     this._commitConfig('removeObject_Group');
-
-
   }
 
   private _createTypeElement(index): TemplateResult {
@@ -1504,7 +1562,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 ></floor3dpro-textfield>
                 <floor3dpro-select
                   label="Action"
-                  @selected=${this._selectedChanged}
+                  @selected=${this._valueChanged}
                   .value=${config.action ? config.action : null}
                   .optionTgt=${this._options.entities.options.entities[index].options}
                   .configObject=${config}
@@ -1557,7 +1615,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   : html`
                       <floor3dpro-select
                         label="Object id"
-                        @selected=${this._selectedChanged}
+                        @selected=${this._valueChanged}
                         .value=${config.object_id}
                         .configAttribute=${'object_id'}
                         .configObject=${config}
@@ -1822,8 +1880,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     this._config.object_groups = this._configObjectArray;
     this._commitConfig('addObject');
-
-
   }
 
   private _addColorCondition(ev): void {
@@ -1846,8 +1902,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     this._config.entities = this._configArray;
     this._commitConfig('addColorCondition');
-
-
   }
 
   private _moveObject(ev): void {
@@ -1869,8 +1923,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     this._config.object_groups = this._configObjectArray;
     this._commitConfig('moveObject');
-
-
   }
 
   private _moveColorCondition(ev): void {
@@ -1892,8 +1944,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     this._config.entities = this._configArray;
     this._commitConfig('moveColorCondition');
-
-
   }
 
   private _removeObject(ev): void {
@@ -1920,8 +1970,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     }
     this._config.object_groups = this._configObjectArray;
     this._commitConfig('removeObject');
-
-
   }
 
   private _removeColorCondition(ev): void {
@@ -1948,8 +1996,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     }
     this._config.entities = this._configArray;
     this._commitConfig('removeColorCondition');
-
-
   }
 
   private _updateObject(ev): void {
@@ -1976,8 +2022,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     this._config.object_groups = this._configObjectArray;
     this._commitConfig('updateObject');
-
-
   }
 
   private _updateColorCondition(ev): void {
@@ -2004,8 +2048,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     this._config.entities = this._configArray;
     this._commitConfig('updateColorCondition');
-
-
   }
 
   private _createLightElement(index): TemplateResult {
@@ -2084,7 +2126,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                             </floor3dpro-formfield>
                             <floor3dpro-select
                               label="Shadow (yes/<no>)"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.light.shadow ? config.light.shadow : null}
                               .configObject=${config.light}
                               .configAttribute=${'shadow'}
@@ -2124,7 +2166,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                             </floor3dpro-formfield>
                             <floor3dpro-select
                               label="Light Vertical Alignment"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.light.vertical_alignment ? config.light.vertical_alignment : null}
                               .configObject=${config.light}
                               .configAttribute=${'vertical_alignment'}
@@ -2218,7 +2260,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                             ></floor3dpro-textfield>
                             <floor3dpro-select
                               label="Label text (state or template)"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.room.label_text ? config.room.label_text : null}
                               .configObject=${config.room}
                               .configAttribute=${'label_text'}
@@ -2299,7 +2341,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                         : html`
                             <floor3dpro-select
                               label="Object id"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.object_id}
                               .configAttribute=${'object_id'}
                               .configObject=${config}
@@ -2477,7 +2519,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                         ? html`
                             <floor3dpro-select
                               label="Door Type"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.door.doortype ? config.door.doortype : null}
                               .configObject=${config.door}
                               .configAttribute=${'doortype'}
@@ -2490,7 +2532,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                             </floor3dpro-select>
                             <floor3dpro-select
                               label="Side"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.door.side ? config.door.side : null}
                               .configObject=${config.door}
                               .configAttribute=${'side'}
@@ -2505,7 +2547,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                             </floor3dpro-select>
                             <floor3dpro-select
                               label="Direction"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.door.direction ? config.door.direction : null}
                               .configObject=${config.door}
                               .configAttribute=${'direction'}
@@ -2607,7 +2649,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                             ></floor3dpro-textfield>
                             <floor3dpro-select
                               label="Side"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.cover.side ? config.cover.side : null}
                               .configObject=${config.cover}
                               .configAttribute=${'side'}
@@ -2722,7 +2764,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                         ? html`
                             <floor3dpro-select
                               label="Axis"
-                              @selected=${this._selectedChanged}
+                              @selected=${this._valueChanged}
                               .value=${config.rotate.axis ? config.rotate.axis : null}
                               .configObject=${config.rotate}
                               .configAttribute=${'axis'}
@@ -3013,11 +3055,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     console.log('Type3D changed end');
   }
-  
-  private _selectedChanged(ev): void {
-    this._valueChanged(ev);
-    this._commitConfig('selectedChanged');
-  }
 
   private _valueChanged(ev): void {
     if (!this._config || !this.hass) {
@@ -3041,11 +3078,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
         target.configObject[target.configAttribute] = target.value;
       }
     }
-    // Faz-0 Editor Backbone: schedule commit
-    // Draft update only — NO HA COMMIT HERE
     this._config.entities = this._configArray;
     this._config.object_groups = this._configObjectArray;
     this._config.zoom_areas = this._configZoomArray;
+    this._commitConfig('valueChanged');
   }
 
   static get styles(): CSSResultGroup {

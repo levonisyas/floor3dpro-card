@@ -212,6 +212,8 @@ export class Floor3dCard extends LitElement {
   private _proLevelLastHighestVisible: number | null = null;
   private _proLevelExteriorCount = 0;
   private _proLevelCountByLevel: Record<number, number> = {};
+  // Faz-0 Deterministic Correction: (Fix) Viewport mask for zero-size prevention
+  private _viewportMask?: HTMLDivElement;
 
   constructor() {
     super();
@@ -311,6 +313,12 @@ export class Floor3dCard extends LitElement {
         this._clock = null;
         this._renderer.setAnimationLoop(null);
       }
+    }
+
+    // Faz-0 deterministic Correction: (Fix) Viewport mask cleanup
+    if (this._viewportMask) {
+      this._viewportMask.remove();
+      this._viewportMask = undefined;
     }
   }
 
@@ -622,6 +630,31 @@ export class Floor3dCard extends LitElement {
   private _proLevelLog(message: string, throttleKey: string): void {
     proLog(this._proLogState, this._proSkillEnabled('level'), 'LEVEL', message, throttleKey);
   }
+  
+  private _proMobileLog(message: string, throttleKey: string): void {
+    proLog(this._proLogState, this._proSkillEnabled('mobile'), 'MOBILE', message, throttleKey);
+  }
+
+  // Faz-0 Deterministic Correction: (Fix) Viewport mask for zero-size prevention
+  private _ensureViewportMask(): void {
+    if (this._viewportMask) return;
+
+    const el = document.createElement('div');
+    el.textContent = '[PRO] Asset Cache Loading…';
+    el.style.position = 'absolute';
+    el.style.left = '10%';
+    el.style.top = '5%';
+    el.style.fontSize = '14px';
+    el.style.opacity = '0.9';
+    el.style.color = '#0b5197';
+    el.style.pointerEvents = 'none';
+    el.style.zIndex = '5';
+    el.style.display = 'none';
+
+    this._content.style.position = 'relative';
+    this._content.appendChild(el);
+    this._viewportMask = el;
+  }
 
   // Faz-0 Engine Backbone: (Stabil.Patch.0.0) Functions Starts
   private _canRender(): boolean {
@@ -629,6 +662,31 @@ export class Floor3dCard extends LitElement {
     if (!this._modelready) return false;
     if (!this._renderer || !this._scene || !this._camera) return false;
     if (!this._renderer.domElement) return false;
+
+    // Faz-0 Deterministic Correction: (Fix) Viewport gate
+    // Model ready != frame ready. If parent size is 0x0, do NOT render a frame (prevents stretch/squash).
+    const parent = this._renderer.domElement.parentElement;
+    if (!parent) {
+      this._ensureViewportMask();
+      if (this._viewportMask) this._viewportMask.style.display = 'block';
+      return false;
+    }
+    if (parent.clientWidth <= 0 || parent.clientHeight <= 0) {
+      // Faz-0 PRO Backbone: engine log (viewport not ready)
+      this._proEngineLog(
+        `viewport_not_ready | parent=${parent.clientWidth}x${parent.clientHeight} | render blocked`,
+        'viewport:not_ready',
+      );
+
+      this._ensureViewportMask();
+      if (this._viewportMask) this._viewportMask.style.display = 'block';
+      return false;
+    }
+
+    if (this._viewportMask) {
+      this._viewportMask.style.display = 'none';
+    }
+
     return true;
   }
 

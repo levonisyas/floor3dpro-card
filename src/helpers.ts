@@ -285,7 +285,7 @@ export function proSkillEnabled(skillSet: ProSkillSet, domain: ProSkillDomain): 
 export function proLog(
   state: ProLogState,
   enabled: boolean,
-  channel: 'ENGINE' | 'EDITOR' | 'LEVEL',
+  channel: 'ENGINE' | 'EDITOR' | 'LEVEL' | 'MOBILE',
   message: string,
   throttleKey: string,
   onceKey?: string,
