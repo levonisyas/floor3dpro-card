@@ -1,5 +1,10 @@
 
-# Floor3D Pro Card – Game Engine Backbone Edition   
+# Floor3D Pro Card – Game Engine Backbone Edition  
+
+[![HACS Default](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz/)
+[![Latest Release](https://img.shields.io/github/v/release/levonisyas/floor3dpro-card)](https://github.com/levonisyas/floor3dpro-card/releases)
+[![License](https://img.shields.io/github/license/levonisyas/floor3dpro-card)](LICENSE)
+
 ### Your Home Digital Twin for Home Assistant *(3D Lovelace Card)*
 
 ---
@@ -53,7 +58,7 @@ However, as models grow large and entity counts increase, natural performance an
 
 **Shaped by architectural discipline — not just code.**  
 **Not a game engine, but engineered to behave like one.**  
-This card implements a **deterministic game-engine architecture** for both **rendering** and **asset management**.
+This card implements a deterministic game‑engine architecture for its **Render Scheduler, Asset Backbone, and Transactional Editor** systems.  
 
 ---
 
@@ -244,6 +249,10 @@ Desktop behavior remains unchanged when the skill is disabled.
 ```yaml
 Pro_skill: mobile
 ```
+
+---
+
+>**From this point onward, the content is sourced from the original** `floor3d-card` by **@andyHA** and has been adapted, condensed, and reformatted for this documentation.
 
 ---
 
