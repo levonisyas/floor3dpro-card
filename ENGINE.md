@@ -1,3 +1,9 @@
+
+# Floor3D Pro — Engine Technical Reference  
+### *This document provides the deep technical explanation behind the deterministic engine backbone, render scheduler, asset cache, transactional editor pipeline, and Pro skill architecture. It is the detailed companion to the high‑level “Deterministic Engine Core Overview” section in README.*
+
+---
+
 # Floor3D Pro: Deterministic Render Scheduler, Engine Backbone and Additional PRO Features
 
 ## Context: Transition from UI Component to Game Engine Logic
@@ -570,12 +576,57 @@ We did not bend the backbone to the Edit Card.”**
 * **Editor lifecycle guard added** — early render() calls no longer risk undefined-access crashes  
 * **Edit‑Card fallback template enabled** — hostile lifecycle states no longer break the editor  
 * **DOM custom‑element isolation added** — original and Pro cards can run side‑by‑side without conflict.
+* **Layout‑timing gap stabilized** — model_loaded events could fire while the parent size was still 0×0; rendering is now deferred until valid layout dimensions exist, preventing first‑frame stretch and aspect‑ratio artifacts
 
 ---
 
-## Additional PRO Features
+## Additional Pro Features
 
-**`pro_log?: 'engine' | 'level' | 'all'`**
+`Release` *1.5.3-Pro.Faz.1*
+
+**Activation** *(All Pro features are **opt-in** and disabled by default.)*
+
+### Engine Diagnostics (optional)
+
+```yaml
+Pro_log: engine
+```
+
+---
+
+### Feature Skills (optional)
+
+```yaml
+Pro_skill: [level, editor, mobile]
+```
+
+Enables selected Pro skill modules.
+
+* `level` → Pro Skill: `level`  
+* `editor` → Pro Skill: `editor`  
+* `mobile` → Pro Skill: `mobile`  
+
+You can enable one or multiple skills:
+
+```yaml
+Pro_skill: level
+```
+
+or
+
+```yaml
+Pro_skill: [level, editor]
+```
+
+To disable all skills (default):
+
+```yaml
+Pro_skill: []
+```
+
+---
+
+### `pro_log?: 'engine' | 'all'`**
 Optional detailed logging for debugging engine behavior.
 Allows tracing render scheduling, level activation, and lifecycle decisions without polluting normal logs.
 
@@ -639,6 +690,20 @@ Enable via:
 pro_skill: level
 ```
 
+**Usage**  
+
+```yaml
+# Always-active entity (security, exterior, climate, etc.)
+- entity: <your_entity>
+  object_id: <your_object_id>
+  level: -1   # always active, never paused
+
+# Floor-specific entity (active only when this floor is visible)
+- entity: <your_entity>
+  object_id: <your_object_id>
+  level: 3    # active only when floor 3 is the highest visible level
+```
+
 When enabled:
 
 * Level-Based Entity Filtering is active
@@ -673,4 +738,162 @@ Normal entity state changes (on/off, brightness, color, etc.) produce **no addit
 * Behavior is deterministic and side-effect free
 
 ---
+### EDITOR‑User Driven Cycle Pro Skill: `editor`  
+Release: `1.5.3‑Pro.Faz.1.B`
 
+---
+
+This skill introduces a deterministic **manual‑commit editing model** for complex 3D setups where automatic commits cause instability or preview resets.  
+It changes **how** edits are committed — not **what** can be edited.  
+**This feature is designed specifically for the Home Assistant visual editor UI; its benefits and behavioral differences are visible only during interactive editing, not in YAML usage.**
+
+When enabled:
+
+- Automatic `config-changed` commits are disabled  
+- All editing actions remain fully interactive  
+- Editor updates stay local  
+- No debounce, no background commits, no preview‑triggered commits, no commit‑spam
+
+Editing becomes **free**, but applying changes becomes **intentional**.
+
+A dedicated **SAVE/Commit Changes** button appears.  
+This is the **only** allowed path for configuration updates.
+
+<span style="color:red">To apply your changes, press the **Commit Changes** button.</span>
+
+- One click → one deterministic commit  
+- No alternative commit routes  
+- No auto‑commit, no lifecycle commits, no preview commits  
+
+This enforces a clean **draft → commit → apply** pipeline.
+
+Why this exists:
+
+- Prevents preview rebuild storms  
+- Prevents model reload loops  
+- Prevents editor flicker or resets  
+- Prevents incomplete configs being sent to HA  
+- Keeps editing responsive on weak devices  
+
+With this skill, configuration is committed **once**, intentionally.
+
+**Activation** *(This feature is **opt-in** and disabled by default.)*
+
+```yaml
+Pro_skill: editor
+```
+
+Design principle:
+
+**Editor input is free. Commit is intentional.**
+
+What it disables:
+
+- Navigation‑triggered commits  
+- Focus/scroll commits  
+- Preview lifecycle commits  
+- “New card” creation commits  
+- Any implicit `config-changed` spam  
+
+All changes remain local until manually committed.
+
+In plain terms:
+
+**Prevents the editor from “saving on every move”.**
+
+If previews break, cards re‑create themselves, or edits apply before you finish — this skill fixes exactly that.
+
+---
+
+### Mobile-Optimized Runtime Profile Pro Skill: `mobile`  
+Release: `1.5.3‑Pro.Faz.1.C`
+
+---
+
+The **Mobile** skill enables a dedicated renderer Profile optimized for tablets and phones.  
+Its purpose is to keep Floor3D stable on low‑power devices such as:
+
+- iPad / iPhone  
+- Android tablets  
+- Raspberry Pi 4 (2 GB RAM)  
+- Embedded dashboards and lightweight browsers  
+
+This is **not** a UI redesign.  
+It is a deterministic **render‑cost tier** that imProves:
+
+- Smoothness  
+- Responsiveness  
+- Thermal / battery balance  
+- Stability under heavy models  
+
+---
+
+Activation (Opt‑in)
+
+Mobile mode is disabled by default.
+
+```yaml
+Pro_skill: mobile
+```
+
+When enabled:
+
+- A mobile‑friendly performance tier becomes active  
+- Desktop behavior remains unchanged when disabled  
+
+---
+
+Mobile Renderer Adjustments
+
+When `Pro_skill: mobile` is active, the renderer switches into a mobile execution tier.
+
+**1. Pixel Ratio Clamp**
+
+High devicePixelRatio values increase GPU load on mobile hardware.  
+Mobile mode enforces:
+
+- Mobile → `pixelRatio = 1`  
+- Desktop → native `window.devicePixelRatio`  
+
+---
+
+**2. Shadow Tier Reduction**
+
+Shadow filtering is one of the most expensive GPU operations on mobile.  
+Mobile mode reduces shadow complexity:
+
+- Mobile → `THREE.BasicShadowMap`  
+- Desktop → `THREE.PCFSoftShadowMap`  
+
+---
+
+**3. Antialias Tier Control**
+
+Multisample antialiasing is costly on tablets.  
+Mobile mode disables it deterministically:
+
+- Mobile → antialias OFF  
+- Desktop → antialias ON  
+
+---
+
+What Mobile Mode Does **Not** Change
+
+Mobile mode does **not** modify:
+
+- Entity mapping  
+- Interaction logic  
+- Editor behavior  
+- UI layout  
+- Any `Pro_log` features  
+
+It is strictly a renderer‑level optimization tier.
+
+---
+
+Design Principle
+
+**Mobile mode is a deterministic renderer cost Profile — not a new behavior model.**  
+It allows Floor3D Pro to remain stable on weak hardware without altering the core architecture.
+
+---

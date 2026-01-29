@@ -1,13 +1,15 @@
 
-# Floor3D [PRO] Card  
-## Your Home Digital Twin – Game Engine Backbone Edition
----
->## 🔗 Floor3D [PRO] Card (source & documentation):  
->- **<https://github.com/levonisyas/floor3dpro-card>**
->- **<https://community.home-assistant.io/t/your-home-digital-twin-interactive-floor-3d-plan-pro/>**
+# Floor3D Pro Card – Game Engine Backbone Edition   
+### Your Home Digital Twin for Home Assistant *(3D Lovelace Card)*
 
 ---
-<img width="1200" height="643" alt="image" src="demo/demo.jpg">
+>## 🔗 Floor3D Pro Card (source & documentation):  
+>- **<https://github.com/levonisyas/floor3dpro-card>**
+>- **<https://community.home-assistant.io/t/your-home-digital-twin-interactive-floor-3d-plan-Pro/>**
+
+---
+
+<img src="demo/demo.jpg" width="1200" alt="Floor3D Pro Card">
 
 ---
 
@@ -17,19 +19,19 @@
 <https://github.com/adizanni/floor3d-card>
 
 > **⚠️ Important:**  
-> This is **not a feature expansion** of the original project.  
+> This is **not a feature expansion** of the original Project.  
 > For feature requests or development inquiries, please contact the original author.
 
 ---
 
 ## Overview
 
-**Floor3D [PRO] Card** is a Lovelace card for Home Assistant that enables the creation of a **3D digital twin** of a home based on its physical structure, providing an **interactive 3D floor plan**. The card represents device and sensor data from Home Assistant through a three-dimensional home model in a **visual and interactive** manner.
+**Floor3D Pro Card** is a Lovelace card for Home Assistant that enables the creation of a **3D digital twin** of a home based on its physical structure, Providing an **interactive 3D floor plan**. The card represents device and sensor data from Home Assistant through a three-dimensional home model in a **visual and interactive** manner.
 
 - The card associates Home Assistant entities such as lights, switches, doors, windows, shutters, and sensors with objects within the 3D model, allowing the current state of the home to be observed within a single scene.
 - For example, when a room light is turned on, the corresponding area is illuminated in the model; door, window, and shutter objects visually reflect their open–close states, while sensors display their associated states directly within the scene.
 
-> **Floor3D [PRO] Card**, unlike approaches based on 2D images or image-based floor plans, builds the scene using real **3D geometry**.  
+> **Floor3D Pro Card**, unlike apProaches based on 2D images or image-based floor plans, builds the scene using real **3D geometry**.  
 > This allows the entire home to be monitored and interactively managed through a single **3D scene**, particularly in large or multi-story environments.
 
 Technically, the card uses a home model created with 3D modeling tools such as **Sweet Home 3D, Rhino, 3ds Max, Blender, SketchUp**, and similar software, exported in obj or glb format.  
@@ -42,7 +44,9 @@ The 3D scene is generated using a JavaScript-based 3D rendering infrastructure a
 
 The original `floor3d-card` works exceptionally well and introduced a powerful idea: a true **digital twin** inside Home Assistant.  
 However, as models grow large and entity counts increase, natural performance and lifecycle limits emerge — not due to poor design, but because UI‑driven architectures do not scale like engines.  
-**This project focuses on scaling and stabilization, not on rewriting the core idea.**
+**This Project focuses on scaling and stabilization, not on rewriting the core idea.**
+
+---
 
 ## Built on a Real Game-Engine Backbone  
 `Release` *1.5.3-Pro.Faz.0*
@@ -60,50 +64,31 @@ This isn’t a performance hack — **it's determinism as a foundation.**
 
 ---
 
-## Floor3D Pro enforces Home Assistant UI components to operate through a deterministic render scheduler gate, which acts as a game-engine backbone.
-
-It replaces random render triggers with a **deterministic render scheduler** using a single entry point: `_requestRender()`.
-
-All inputs—Hass updates, resize events, camera movements—pass through a **controlled render flow through a single gate**, ensuring **100 triggers → 1 render**.
-
-The engine enforces **state management and load separation**, clearly separating the "awake" state from model loading to prevent premature rendering.
-
-A strict **State → Index → Apply → Render** chain and enforced index-space integrity ensure smooth, predictable behavior, even with hundreds of entities.
-
-This deterministic backbone improves **performance and stability**, eliminating lag, jitter, and freezes on low-power devices while delivering a responsive digital twin experience.
+## Deterministic Render Scheduler  
+Floor3D Pro routes every render trigger through a single, predictable scheduler.  
+This ensures **100 triggers result in only 1 render**, eliminating jitter, lag, and random redraws for a consistently smooth experience on any device.
 
 ---
 
-## Floor3D Pro enforces Home Assistant UI asset usage through a deterministic asset cache, which acts as a game-engine backbone.
-
-Floor3D Pro now handles asset loading like a **real game engine**: each asset **loads once**, and every instance receives a **deep clone**.
-
-**UI-driven re-instantiation** from preview panels, YAML edits, or parallel cards is **kept under control**, preventing **duplicate fetches**, **parse storms**, and **race conditions**.
-
-A **deterministic cache and promise coalescing** strategy uses a **strict cache key** (`path + objfile (+ mtlfile)`) to ensure **predictable behavior**, while **simultaneous requests** resolve into a **single load**.
-
-Cached assets remain **read-only**, while each instance receives **isolated materials, geometry, textures, and transforms** on a **shared backbone**.
-
-The engine loop remains **unchanged** (`State → Index → Apply → Render`), but the backbone becomes **stable**, **deterministic**, and **immune to UI-driven chaos**.
+## Deterministic Asset Backbone  
+All models load **once**, and each card receives its own isolated clone.  
+This prevents duplicate fetches, parse storms, and UI‑driven chaos, delivering a stable and efficient asset pipeline that behaves like a real game engine.
 
 ---
 
-## Floor3D Pro enforces Home Assistant card editing through a deterministic transactional editor, which acts as a game‑engine backbone.
+## Deterministic Transactional Editor  
+All edits stay in a **draft state** until you intentionally commit them.  
+This removes rebuild storms, preview resets, and accidental refresh loops, resulting in a clean, predictable editing workflow even in large, complex setups.
 
-It replaces uncontrolled edit‑time rebuilds with a **deterministic transactional editor pipeline** governed by a single commit gate.
+---
 
-All editor inputs—typing, selection changes, entity operations, and structural edits—pass through a **controlled draft‑and‑commit flow**, ensuring **100 micro‑changes → 1 commit**.
-
-The editor enforces **state separation and transactional integrity**, clearly distinguishing draft mutations from committed updates to prevent premature rebuilds.
-
-A strict **Draft → Commit → Apply** chain and enforced transactional boundaries ensure smooth, predictable editing behavior, even in complex multi‑entity configurations.
-
-This transactional editor backbone improves **responsiveness and reliability**, eliminating jitter, random rebuilds, and F5‑style refresh storms while delivering a stable, game‑engine‑like editing experience even on low‑power devices.
+## Deterministic Engine Core Overview  
+*Detailed explanation in [ENGINE.md](https://raw.githubusercontent.com/levonisyas/floor3dpro-card/refs/heads/main/ENGINE.md)*
 
 ---
 
 >## Deterministic Correction: (Fix)  
->*Repairs the original behavior through a clean, deterministic game‑engine backbone..*
+>*Repairs the original behavior through a clean, deterministic game‑engine backbone..*  
 
 * **Overlay is display‑only** — must not block clicks on level/zoom controls  
 * **Touchstart listener marked passive** — prevents scroll‑blocking violations  
@@ -114,11 +99,53 @@ This transactional editor backbone improves **responsiveness and reliability**, 
 * **Editor lifecycle guard added** — early render() calls no longer risk undefined-access crashes  
 * **Edit‑Card fallback template enabled** — hostile lifecycle states no longer break the editor  
 * **DOM custom‑element isolation added** — original and Pro cards can run side‑by‑side without conflict.
+* **Layout‑timing gap stabilized** — model_loaded events could fire while the parent size was still 0×0; rendering is now deferred until valid layout dimensions exist, preventing first‑frame stretch and aspect‑ratio artifacts
 
 ---
 
-## Additional PRO Features  
+## Additional Pro Features
+
 `Release` *1.5.3-Pro.Faz.1*
+
+**Activation** *(All Pro features are **opt-in** and disabled by default.)*
+
+### Engine Diagnostics (optional)
+
+```yaml
+Pro_log: engine
+```
+
+---
+
+### Feature Skills (optional)
+
+```yaml
+Pro_skill: [level, editor, mobile]
+```
+
+Enables selected Pro skill modules.
+
+* `level` → Pro Skill: `level` *keeps entity‑heavy multi‑floor models fast and responsive*  
+* `editor` → Pro Skill: `editor` *stable editing without auto‑commit chaos*  
+* `mobile` → Pro Skill: `mobile` *smoother experience on tablets/phones*  
+
+You can enable one or multiple skills:
+
+```yaml
+Pro_skill: level
+```
+
+or
+
+```yaml
+Pro_skill: [level, editor]
+```
+
+To disable all skills (default):
+
+```yaml
+Pro_skill: []
+```
 
 ---
 
@@ -130,136 +157,93 @@ Allows tracing render scheduling, asset cache and lifecycle decisions without po
 **Activation** *(This feature is **opt-in** and disabled by default.)*
 
 ```yaml
-pro_log: engine
+Pro_log: engine
 ```
 
 ---
 
-### Level-Based Entity Filtering (Pro Skill: `level`)  
+### LEVEL-Based Entity Filtering Pro Skill: `level`  
 `Release` *1.5.3-Pro.Faz.1.A*
 
 ---
 
-This update introduces a **performance‑oriented execution filter** designed for large, multi‑level 3D models with many entities.  
-Each entity can define a numeric `level`:
+The `level` skill adds a performance‑focused execution filter for entity‑heavy multi‑floor models.  
+Each entity defines its level **in the YAML configuration**, where **`-1` entities are always active** (security, climate, exterior lights, alarms, etc.) and never paused.  
+All other entities activate **only when their YAML‑defined level matches the highest visible floor**; non‑matching levels become inactive to reduce update and render load.
 
-- **`-1`** → Exterior or always‑active entities  
-- **`0, 1, 2, ...`** → Interior floors
+Inactive entities **stop receiving HA updates**, are **skipped in render/update cycles**, and **ignore interactions and service calls**, improving responsiveness on large setups without changing what is visually shown.
 
-Entities at **level `-1`** remain active at all times (security, climate, exterior lights, alarms, etc.) and are never paused.
-
-The visual level buttons continue to work as before; this feature does **not** change what is shown on screen.  
-Instead, it adds a new execution rule that improves performance:
-
-**Active entities = level `-1` + the highest currently visible level**
-
-Entities with **`level: -1`** defined in the YAML configuration are **always active**.  
-All other entities become active only when their YAML‑defined level **exactly matches** the highest visible level; entities on non‑matching levels become inactive.
-
-All other entities become **inactive**, meaning:
-
-- They stop receiving Home Assistant state updates  
-- They are skipped in render/update cycles  
-- Click and interaction events are ignored  
-- No services are triggered for them  
-
-The highest visible level is determined from the internal `_displaylevels[]` state.
-
-**Activation** *(This feature is **opt-in** and disabled by default.)*
+**Activation** *(This feature is **opt-in** and disabled by default.)*  
 
 ```yaml
-pro_skill: level
+Pro_skill: level
 ```
 
-**Usage**
+**Usage**  
 
 ```yaml
+# Always-active entity (security, exterior, climate, etc.)
 - entity: <your_entity>
   object_id: <your_object_id>
-  level: 3
-  # and so on
+  level: -1   # always active, never paused
+
+# Floor-specific entity (active only when this floor is visible)
+- entity: <your_entity>
+  object_id: <your_object_id>
+  level: 3    # active only when floor 3 is the highest visible level
 ```
 
 ---
 
-### Deterministic Manual‑Commit Editing (Pro Skill: `editor`)  
-`Release: 1.5.3‑Pro.Faz.1.B`
+### EDITOR‑User Driven Cycle Pro Skill: `editor`  
+Release: `1.5.3‑Pro.Faz.1.B`  
 
 ---
 
-This skill introduces a deterministic **manual‑commit editing model** for complex 3D setups where automatic commits cause instability or preview resets.  
-It changes **how** edits are committed — not **what** can be edited.
+The `editor` skill replaces Home Assistant’s auto‑saving behavior with a deterministic **manual‑commit editing model**.  
+It changes **how** edits are applied — not what can be edited — and affects only the visual editor UI (not YAML).
 
-When enabled:
+When enabled, all edits stay **local**:  
+no auto‑commit, no preview‑triggered commits, no lifecycle commits, no debounce, no background updates, no `config-changed` spam.  
+Editing becomes free, but applying changes becomes **intentional**.
 
-- Automatic `config-changed` commits are disabled  
-- All editing actions remain fully interactive  
-- Editor updates stay local  
-- No debounce, no background commits, no preview‑triggered commits, no commit‑spam
+A dedicated **Commit Changes** button appears and becomes the **only** valid way to save configuration updates.  
+One click = one deterministic commit, enforcing a clean **draft → commit → apply** workflow.
 
-Editing becomes **free**, but applying changes becomes **intentional**.
-
-A dedicated **SAVE/Commit Changes** button appears.  
-This is the **only** allowed path for configuration updates.
-
-<span style="color:red">To apply your changes, press the **Commit Changes** button.</span>
-
-- One click → one deterministic commit  
-- No alternative commit routes  
-- No auto‑commit, no lifecycle commits, no preview commits  
-
-This enforces a clean **draft → commit → apply** pipeline.
-
-Why this exists:
-
-- Prevents preview rebuild storms  
-- Prevents model reload loops  
-- Prevents editor flicker or resets  
-- Prevents incomplete configs being sent to HA  
-- Keeps editing responsive on weak devices  
-
-With this skill, configuration is committed **once**, intentionally.
-
-**Activation** *(This feature is **opt-in** and disabled by default.)*
-
-```yaml
-pro_skill: editor
-```
-
-Design principle:
-
-**Editor input is free. Commit is intentional.**
-
-What it disables:
-
-- Navigation‑triggered commits  
-- Focus/scroll commits  
-- Preview lifecycle commits  
-- “New card” creation commits  
-- Any implicit `config-changed` spam  
-
+This prevents preview rebuild storms, model reload loops, editor flicker, accidental partial saves, and keeps editing responsive on weaker devices.  
 All changes remain local until manually committed.
 
-In plain terms:
+**Activation** *(This feature is **opt-in** and disabled by default.)*  
 
-**Prevents the editor from “saving on every move”.**
+```yaml
+Pro_skill: editor
+```
 
-If previews break, cards re‑create themselves, or edits apply before you finish — this skill fixes exactly that.
+---
+
+### Mobile-Optimized Runtime Profile Pro Skill: `mobile`  
+Release: `1.5.3‑Pro.Faz.1.C`
 
 ---
 
-### Mobile‑only Mode (PRO) — Coming Soon
+The `mobile` skill enables a dedicated renderer profile optimized for tablets, phones, and other low‑power devices.  
+It does not change the UI; it simply activates a lighter, deterministic **render‑cost tier** that improves smoothness, responsiveness, thermal balance, and stability on heavy models.
 
-A dedicated mode optimized specifically for tablets and phones:
+When enabled, the renderer switches to mobile‑friendly settings:
 
-- adjusted pixel ratio  
-- reduced shadow cost  
-- mobile‑friendly render parameters  
+- **Pixel ratio clamp** → forces `pixelRatio = 1` to reduce GPU load  
+- **Shadow tier reduction** → uses `BasicShadowMap` instead of PCF soft shadows  
+- **Antialias control** → disables expensive multisample antialiasing  
 
-The result is smoother interaction and a better balance between performance and battery usage on mobile devices.
+These adjustments apply only to rendering.  
+Mobile mode does **not** modify entity logic, interactions, editor behavior, UI layout, or logging features.  
+Desktop behavior remains unchanged when the skill is disabled.
 
----
->**From this point onward, the content is sourced from the original** `floor3d-card` by **@andyHA** and has been adapted, condensed, and reformatted for this documentation.
+**Activation** *(This feature is **opt-in** and disabled by default.)*  
+
+```yaml
+Pro_skill: mobile
+```
 
 ---
 
@@ -267,7 +251,7 @@ The result is smoother interaction and a better balance between performance and 
 
 ### Recommended Workflow (Easy Method)
 
-- **Sweet Home 3D is recommended** because it provides the simplest workflow for designing your home model with furniture and objects.  
+- **Sweet Home 3D is recommended** because it Provides the simplest workflow for designing your home model with furniture and objects.  
 - After modeling, export using the **ExportToHASS** plugin **(original author @andyHA)**:  
   <https://github.com/adizanni/ExportToHASS> 
 - This plugin generates an **OBJ** model with correct object groups for the Floor3D card.
@@ -301,7 +285,7 @@ Copy the resulting `.glb` file into your Home Assistant `/config/www/community/f
 
 **Importing OBJ for Editing**
 
-When importing the OBJ generated by ExportToHASS into a professional 3D tool:
+When importing the OBJ generated by ExportToHASS into a Professional 3D tool:
 
 - Import OBJ groups as: **layers**  
 - Import OBJ objects as: **none / nothing**
@@ -343,7 +327,7 @@ These represent floors/levels, and if you don’t follow this naming convention,
 When exporting, layer names become OBJ groups.
 
 **Key Principle:** OBJ group = **layer**  
-This is the shared logic across all professional 3D modeling applications.
+This is the shared logic across all Professional 3D modeling applications.
 
 ---
 
@@ -351,23 +335,25 @@ This is the shared logic across all professional 3D modeling applications.
 
 ### Method 1: HACS (Recommended)
 
-1. Open **HACS** in Home Assistant.  
-2. Click the three dots (`⋮`) in the top‑right corner.  
-3. Select **"Custom repositories"**.  
-4. Add this repository URL:  
-   <https://github.com/levonisyas/floor3dpro-card>
-5. Set category: **"Dashboard"**.  
-6. Click **"Add"**.  
-7. Find **"HA Digital Twin Pro Upgrade"** in HACS and install.  
-8. **Restart Home Assistant.**
+1. Open **HACS** in Home Assistant.
+2. Search for: **Floor3D Pro Card**.
+3. Select the repository and click **Download**.
+4. **Restart Home Assistant.**
+
+After installation, HACS will automatically register the card as a Lovelace resource.
+
+---
 
 ### Method 2: Manual Installation
 
-1. Download `floor3dpro-card.js` from the repository:  
-   <https://github.com/levonisyas/floor3dpro-card>
+1. Download the latest `floor3dpro-card.js` from the Releases page:  
+   <https://github.com/levonisyas/floor3dpro-card/releases>  
+
 2. Place the file in:  
+
    `/config/www/community/floor3dpro-card/`  
-3. Add as a Lovelace resource:
+
+3. Add it as a Lovelace resource:  
 
 ```yaml
 resources:
@@ -377,7 +363,14 @@ resources:
 
 ---
 
-## Build Chain (`Floor3D [PRO] Card`)
+### Notes
+
+* No custom repository setup is required anymore, since Floor3D Pro is now included in the official **HACS Default Repository Store**.  
+* Manual installation is only recommended for advanced or offline setups.  
+
+---
+
+## Build Chain `Floor3D Pro Card`
 
 ### Supported / Verified Environment
 
@@ -416,7 +409,7 @@ north:
 
 >**Camera Rotation, Camera Position and Camera Direction**
 
-In edit mode, double‑clicking on an empty area of the model retrieves the current camera position and rotation. A prompt box appears showing two sets of coordinates, which you can copy and paste into the card configuration in code editor mode. This allows you to manually define the new default camera position.
+In edit mode, double‑clicking on an empty area of the model retrieves the current camera position and rotation. A Prompt box appears showing two sets of coordinates, which you can copy and paste into the card configuration in code editor mode. This allows you to manually define the new default camera position.
 
 ```
 camera_position:
@@ -492,7 +485,7 @@ Light behavior is straightforward: the light object illuminates when the linked 
 |Light options | Description|
 |--- | ---|
 |Lumens | Defines the light’s brightness level (0–5000), with typical LED and bulb sources reaching up to 4000 lumens.|
-|Color | Defines the emitted light color; ignored if the light entity provides its own color/temperature attributes.|
+|Color | Defines the emitted light color; ignored if the light entity Provides its own color/temperature attributes.|
 |Decay | Controls how quickly the light intensity decreases over distance (0–2 typical).|
 |Distance | Sets the maximum effective range of the light in centimeters.|
 |Shadow | Determines whether the light casts shadows.|

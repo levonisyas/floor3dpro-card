@@ -106,11 +106,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
         `config-changed fired${reason ? ` (${reason})` : ''}`,
         reason ? `config-changed:${reason}` : 'config-changed'
       );
-
-      // ETAP-2 GAME ENGINE GATE (LATE) — commit dispatch en sonda kesilir
-      // pro_skill: editor ON iken auto commit gönderilmez, sadece manual geçer
+      // Faz-1 PRO Skill: EDITOR ENGINE GATE (LATE) — commit dispatch
+      // pro_skill: editor ON Active Commit Closed Only Manual
       if (this._proSkillEnabled('editor') && reason !== 'manual') {
-        // Skill-gated DOMAIN LOG (anayasa uyumlu; pro_log ile karışmaz)
+        // Skill-gated DOMAIN LOG: Active Commit Closed
         proLog(
           this._proLogState,
           this._proSkillEnabled('editor'),
@@ -120,8 +119,9 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
           'editor:commit-closed'
         );
 
-        // Editor internal normalize (UI listesini toparla)
+        // Editor internal normalize (UI cycle)
         this.setConfig(this._config);
+        this.requestUpdate();
         return;
       }
 
@@ -149,7 +149,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     // Faz-0 PRO Backbone (Editor): apply pro_log + once log
     this._proApplyConfig();
     this._proEditorLog('setConfig: applied', 'setConfig', 'setconfig');
-    // ETAP-2.4: pro_skill: editor ON → log once at config apply (deterministic)
+    // Faz-1 PRO Skill: EDITOR editor ON → log once at config apply (deterministic)
     if (this._proSkillEnabled('editor')) {
       proLog(
         this._proLogState,
@@ -470,7 +470,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
       return html``;
     }
 
-    // PRO Editor Commit Button (currently not working)
+    // Commit Button (original not working)
+    // Faz-1 PRO Skill: EDITOR Commit Button
     const show = this._config.overlay ? this._config.overlay == 'yes' : false;
     return html`
       ${this._proSkillEnabled('editor')
@@ -487,12 +488,6 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   /* ICON COLOR OPTIONS */
                   /* color: var(--primary-text-color); */
                   color: var(--error-color);
-                  /* alternatifler:
-                     color: var(--secondary-text-color);
-                     color: var(--error-color);      // kırmızı
-                     color: var(--warning-color);    // amber
-                     color: var(--accent-color);     // tema vurgu rengi
-                  */
                 "
               >
               </ha-icon>
@@ -503,15 +498,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   /* font-weight: 400; */
                   line-height: 30px;
                   margin-left: 7px;
-                  /* TEXT COLOR OPTIONS */
-                  /* color: var(--primary-text-color); */
-                  color: var(--error-color); 
-                  /* alternatifler:
-                     color: var(--secondary-text-color);
-                     color: var(--error-color);      // kırmızı
-                     color: var(--warning-color);    // amber
-                     color: var(--accent-color);     // tema vurgu rengi
-                  */
+                  color: var(--error-color);
                 "
               >
                 Commit Changes

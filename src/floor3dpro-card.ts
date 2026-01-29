@@ -54,9 +54,9 @@ console.info(
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
   type: 'floor3dpro-card',
-  name: 'Floor3d Pro Card',
+  name: 'Floor3D Pro Card',
   preview: false,
-  description: 'HA Digital Twin Pro Upgrade',
+  description: 'Floor3D Pro Card – Game Engine Backbone Edition',
 });
 class ModelSource {
   public static OBJ = 0;
@@ -612,6 +612,11 @@ export class Floor3dCard extends LitElement {
 
     // pro_log: engine | all
     this._proLogEngine = logSet.has('engine') || logSet.has('all');
+
+    // pro_skill: mobile (DOMAIN) - once log, no spam
+    if (skillSet.mobile) {
+      this._proMobileLog('Active Tablet Mode', 'mobile:active');
+    }
   }
 
   // Gate API (domain packets ask for this at the entry point)
@@ -1667,7 +1672,8 @@ export class Floor3dCard extends LitElement {
 
     // create and initialize renderer
 
-    this._renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, alpha: true });
+    // Faz-1 PRO Skill: MOBILE optimization
+    this._renderer = new THREE.WebGLRenderer({ antialias: !this._proSkillEnabled('mobile'), logarithmicDepthBuffer: true, alpha: true });
     this._maxtextureimage = this._renderer.capabilities.maxTextures;
     console.log('Max Texture Image Units: ' + this._maxtextureimage);
     console.log('Max Texture Image Units: number of lights casting shadow should be less than the above number');
@@ -1889,7 +1895,10 @@ export class Floor3dCard extends LitElement {
     if (this._config.shadow && this._config.shadow == 'yes') {
       console.log('Shadow On');
       this._renderer.shadowMap.enabled = true;
-      this._renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      // Faz-1 PRO Skill: MOBILE optimization
+      this._renderer.shadowMap.type = this._proSkillEnabled('mobile')
+        ? THREE.BasicShadowMap
+        : THREE.PCFSoftShadowMap;
       this._renderer.shadowMap.autoUpdate = false;
     } else {
       console.log('Shadow Off');
@@ -1932,7 +1941,8 @@ export class Floor3dCard extends LitElement {
 
       this._controls = new OrbitControls(this._camera, this._renderer.domElement);
 
-      this._renderer.setPixelRatio(window.devicePixelRatio);
+      // Faz-1 PRO Skill: MOBILE optimization
+      this._renderer.setPixelRatio(this._proSkillEnabled('mobile') ? 1 : window.devicePixelRatio);
 
       this._controls.maxPolarAngle = (0.85 * Math.PI) / 2;
       this._controls.addEventListener('change', this._changeListener);
