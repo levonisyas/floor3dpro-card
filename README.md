@@ -1,6 +1,6 @@
 # Floor3D Pro Card – Game Engine Backbone Edition  
 
-[![HACS Default](https://raw.githubusercontent.com/levonisyas/floor3dpro-card/main/badges/hacs-default.svg)](https://hacs.xyz/) [![License](https://raw.githubusercontent.com/levonisyas/floor3dpro-card/main/badges/license.svg)](LICENSE) [![Latest Release](https://img.shields.io/github/v/release/levonisyas/floor3dpro-card)](https://github.com/levonisyas/floor3dpro-card/releases)  
+[![HACS Default](https://raw.githubusercontent.com/levonisyas/floor3dpro-card/refs/heads/main/badges/hacs-default.svg)](https://hacs.xyz/) [![License](https://raw.githubusercontent.com/levonisyas/floor3dpro-card/refs/heads/main/badges/license.svg)](LICENSE) [![Latest Release](https://img.shields.io/github/v/release/levonisyas/floor3dpro-card)](https://github.com/levonisyas/floor3dpro-card/releases)  
 
 ### Your Home Digital Twin for Home Assistant *(3D Lovelace Card)*
 
