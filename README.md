@@ -1,20 +1,17 @@
-
 # Floor3D Pro Card – Game Engine Backbone Edition  
 
-[![HACS Default](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz/)
-[![Latest Release](https://img.shields.io/github/v/release/levonisyas/floor3dpro-card)](https://github.com/levonisyas/floor3dpro-card/releases)
-[![License](https://img.shields.io/github/license/levonisyas/floor3dpro-card)](LICENSE)
+[![HACS Default](https://raw.githubusercontent.com/levonisyas/floor3dpro-card/main/badges/hacs-default.svg)](https://hacs.xyz/) [![License](https://raw.githubusercontent.com/levonisyas/floor3dpro-card/main/badges/license.svg)](LICENSE) [![Latest Release](https://img.shields.io/github/v/release/levonisyas/floor3dpro-card)](https://github.com/levonisyas/floor3dpro-card/releases)  
 
 ### Your Home Digital Twin for Home Assistant *(3D Lovelace Card)*
 
 ---
 >## 🔗 Floor3D Pro Card (source & documentation):  
 >- **<https://github.com/levonisyas/floor3dpro-card>**
->- **<https://community.home-assistant.io/t/your-home-digital-twin-interactive-floor-3d-plan-Pro/>**
+>- **<https://community.home-assistant.io/t/floor3d-pro-card-game-engine-backbone-edition/>**
 
 ---
 
-<img src="demo/demo.jpg" width="1200" alt="Floor3D Pro Card">
+<img src="https://raw.githubusercontent.com/levonisyas/floor3dpro-card/main/demo/demo.jpg" width="1200" alt="Floor3D Pro Card">
 
 ---
 
